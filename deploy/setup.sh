@@ -53,6 +53,7 @@ sleep 2
 echo "    服務狀態: $(systemctl is-active jlpt)"
 
 echo ">>> [7/8] 設定 Nginx"
+cp "$APP_DIR/deploy/nginx-limits.conf" /etc/nginx/conf.d/jlpt-limits.conf
 cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/sites-available/jlpt
 sed -i "s|DOMAIN_PLACEHOLDER|$DOMAIN|g" /etc/nginx/sites-available/jlpt
 ln -sf /etc/nginx/sites-available/jlpt /etc/nginx/sites-enabled/jlpt
