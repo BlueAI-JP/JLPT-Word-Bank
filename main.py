@@ -70,6 +70,7 @@ class QuizCompleteRequest(BaseModel):
     user_id: int
     level: str
     score: float
+    wrong_word_ids: list[int] = []
 
 
 # ---------------------------------------------------------------------------
@@ -193,12 +194,14 @@ async def get_progress(
         mastered_ids = await db.get_mastered_word_ids(user_id, level)
         study_stats = await db.get_study_stats(user_id, level)
         quiz_stats = await db.get_quiz_stats(user_id, level)
+        wrong_ids = await db.get_quiz_wrong_word_ids(user_id, level)
         result[level] = {
             "total": total,
             "mastered": len(mastered_ids),
             "available": level_info["available"],
             "study": study_stats,
             "quiz": quiz_stats,
+            "wrong_count": len(wrong_ids),
         }
     return result
 
@@ -268,6 +271,8 @@ async def complete_quiz(
 ):
     _require_session(session_token)
     await db.add_quiz_session(req.user_id, req.level, req.score)
+    if req.wrong_word_ids:
+        await db.add_quiz_wrong_words_batch(req.user_id, req.level, req.wrong_word_ids)
     return {"ok": True}
 
 
@@ -279,6 +284,45 @@ async def reset_quiz(
 ):
     _require_session(session_token)
     await db.reset_quiz_sessions(user_id, level)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Routes - Quiz Wrong Words
+# ---------------------------------------------------------------------------
+
+@app.get("/api/quiz/wrong-words/{user_id}/{level}")
+async def get_wrong_words(
+    user_id: int,
+    level: str,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    _require_session(session_token)
+    wrong_ids = await db.get_quiz_wrong_word_ids(user_id, level)
+    all_words = loader.get_words(level)
+    return [w for w in all_words if w["id"] in wrong_ids]
+
+
+@app.delete("/api/quiz/wrong-words/{user_id}/{level}/{word_id}")
+async def remove_wrong_word(
+    user_id: int,
+    level: str,
+    word_id: int,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    _require_session(session_token)
+    await db.remove_quiz_wrong_word(user_id, level, word_id)
+    return {"ok": True}
+
+
+@app.delete("/api/quiz/wrong-words/{user_id}/{level}")
+async def reset_wrong_words(
+    user_id: int,
+    level: str,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    _require_session(session_token)
+    await db.reset_quiz_wrong_words(user_id, level)
     return {"ok": True}
 
 

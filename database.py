@@ -37,6 +37,14 @@ async def init_db() -> None:
                 completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
+            CREATE TABLE IF NOT EXISTS quiz_wrong_words (
+                user_id  INTEGER NOT NULL,
+                level    TEXT    NOT NULL,
+                word_id  INTEGER NOT NULL,
+                added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, level, word_id),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
         """)
         await db.commit()
 
@@ -147,6 +155,49 @@ async def reset_quiz_sessions(user_id: int, level: str) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "DELETE FROM quiz_sessions WHERE user_id = ? AND level = ?",
+            (user_id, level),
+        )
+        await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Quiz wrong words
+# ---------------------------------------------------------------------------
+
+async def add_quiz_wrong_words_batch(user_id: int, level: str, word_ids: list[int]) -> None:
+    if not word_ids:
+        return
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.executemany(
+            "INSERT OR IGNORE INTO quiz_wrong_words (user_id, level, word_id) VALUES (?, ?, ?)",
+            [(user_id, level, wid) for wid in word_ids],
+        )
+        await db.commit()
+
+
+async def get_quiz_wrong_word_ids(user_id: int, level: str) -> set[int]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT word_id FROM quiz_wrong_words WHERE user_id = ? AND level = ?",
+            (user_id, level),
+        ) as cur:
+            rows = await cur.fetchall()
+    return {r[0] for r in rows}
+
+
+async def remove_quiz_wrong_word(user_id: int, level: str, word_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "DELETE FROM quiz_wrong_words WHERE user_id = ? AND level = ? AND word_id = ?",
+            (user_id, level, word_id),
+        )
+        await db.commit()
+
+
+async def reset_quiz_wrong_words(user_id: int, level: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "DELETE FROM quiz_wrong_words WHERE user_id = ? AND level = ?",
             (user_id, level),
         )
         await db.commit()

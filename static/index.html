@@ -5,29 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>JLPT 單字王</title>
 <style>
-/* ===================== CSS Reset & Variables ===================== */
+/* ===================== Reset & Variables ===================== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg: #f0f4f8;
-  --surface: #ffffff;
-  --primary: #4f46e5;
-  --primary-dark: #3730a3;
-  --primary-light: #e0e7ff;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --success: #10b981;
-  --info: #3b82f6;
-  --text: #1e293b;
-  --text-muted: #64748b;
-  --border: #e2e8f0;
-  --shadow: 0 4px 20px rgba(0,0,0,0.08);
-  --radius: 16px;
-  --btn-again: #ef4444;
-  --btn-hard: #f97316;
-  --btn-good: #10b981;
-  --btn-easy: #3b82f6;
-  --font: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', sans-serif;
+  --bg:           #040408;
+  --bg2:          #0d0d1c;
+  --surface:      #0f0f20;
+  --surface2:     #16162e;
+  --primary:      #c9a84c;
+  --primary-dark: #a07830;
+  --primary-light:rgba(201,168,76,0.12);
+  --primary-glow: rgba(201,168,76,0.35);
+  --crimson:      #c0392b;
+  --crimson-glow: rgba(192,57,43,0.4);
+  --success:      #27ae60;
+  --danger:       #e74c3c;
+  --text:         #ddddf0;
+  --text-muted:   #7878a8;
+  --border:       #252548;
+  --shadow:       0 8px 40px rgba(0,0,0,0.7);
+  --card-glow:    0 0 0 1px rgba(201,168,76,0.18), 0 8px 40px rgba(0,0,0,0.7);
+  --radius:       16px;
+  --btn-again:    #e74c3c;
+  --btn-hard:     #e67e22;
+  --btn-good:     #27ae60;
+  --btn-easy:     #2980b9;
+  --font:         'Hiragino Kaku Gothic ProN','Noto Sans JP','Yu Gothic',sans-serif;
 }
+
+/* ===================== Body & Background ===================== */
 body {
   font-family: var(--font);
   background: var(--bg);
@@ -36,471 +42,542 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+}
+
+/* Seigaiha wave pattern */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='40'%3E%3Ccircle cx='40' cy='40' r='39' fill='none' stroke='%23c9a84c' stroke-width='.8' stroke-opacity='.10'/%3E%3Ccircle cx='0' cy='40' r='39' fill='none' stroke='%23c9a84c' stroke-width='.8' stroke-opacity='.10'/%3E%3Ccircle cx='80' cy='40' r='39' fill='none' stroke='%23c9a84c' stroke-width='.8' stroke-opacity='.10'/%3E%3Ccircle cx='20' cy='0' r='39' fill='none' stroke='%23c9a84c' stroke-width='.8' stroke-opacity='.10'/%3E%3Ccircle cx='60' cy='0' r='39' fill='none' stroke='%23c9a84c' stroke-width='.8' stroke-opacity='.10'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Gold radial glow + lacquer depth */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 35% at 50% 0%, rgba(201,168,76,0.13) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 20% at 50% 100%, rgba(192,57,43,0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 30% 50% at 0% 50%, rgba(201,168,76,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 30% 50% at 100% 50%, rgba(201,168,76,0.04) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ===================== Kintsugi cracks overlay ===================== */
+.kintsugi {
+  position: fixed; inset: 0; pointer-events: none; z-index: 1; overflow: hidden;
+  mix-blend-mode: screen;
+}
+
+/* ===================== Sakura Petals ===================== */
+.sakura { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: hidden; }
+.petal {
+  position: absolute; top: -20px;
+  border-radius: 150% 0 150% 0;
+  animation: petalFall linear infinite; opacity: 0;
+}
+@keyframes petalFall {
+  0%   { transform: translateY(-20px) rotate(0deg) translateX(0);   opacity: 0; }
+  5%   { opacity: 0.55; }
+  90%  { opacity: 0.3; }
+  100% { transform: translateY(105dvh) rotate(540deg) translateX(40px); opacity: 0; }
 }
 
 /* ===================== Layout ===================== */
 #app {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  max-width: 600px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 0 12px;
-  height: 100dvh;
-  overflow: hidden;
+  position: relative; z-index: 3; flex: 1; display: flex;
+  flex-direction: column; max-width: 600px; width: 100%;
+  margin: 0 auto; padding: 0 12px; height: 100dvh; overflow: hidden;
 }
 .screen { display: none; flex-direction: column; height: 100%; gap: 10px; padding: 12px 0; }
 .screen.active { display: flex; }
 
 /* ===================== Header ===================== */
 .header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px; padding: 8px 0;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
-.header-title { font-size: 1.1rem; font-weight: 700; color: var(--primary); flex: 1; }
-.header-user { font-size: 0.8rem; color: var(--text-muted); }
+.header-title {
+  font-size: 1rem; font-weight: 800; color: var(--primary); flex: 1;
+  letter-spacing: 0.02em; text-shadow: 0 0 20px var(--primary-glow);
+}
+.header-user { font-size: 0.78rem; color: var(--text-muted); }
 
 /* ===================== Buttons ===================== */
 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px 20px;
-  border-radius: 10px;
-  border: none;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s;
-  font-family: var(--font);
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 10px 18px; border-radius: 10px; border: none;
+  font-size: 0.92rem; font-weight: 700; cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.2s;
+  font-family: var(--font); user-select: none;
+  -webkit-tap-highlight-color: transparent; letter-spacing: 0.02em;
 }
-.btn:active { transform: scale(0.96); }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-.btn-primary { background: var(--primary); color: #fff; }
-.btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
-.btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
-.btn-outline:hover { background: var(--primary-light); }
-.btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+.btn:active { transform: scale(0.95); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+.btn-primary {
+  background: linear-gradient(135deg, #c9a84c, #e8c878, #a07830);
+  background-size: 200% 200%; background-position: 0% 50%;
+  color: #0a0a10; box-shadow: 0 0 16px rgba(201,168,76,0.4);
+  animation: goldShimmer 3s ease infinite;
+}
+@keyframes goldShimmer {
+  0%,100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+.btn-primary:hover:not(:disabled) { box-shadow: 0 0 28px rgba(201,168,76,0.6); }
+
+.btn-outline {
+  background: transparent; color: var(--primary);
+  border: 1.5px solid var(--primary); box-shadow: 0 0 10px rgba(201,168,76,0.15);
+}
+.btn-outline:hover { background: var(--primary-light); box-shadow: 0 0 18px rgba(201,168,76,0.3); }
+
+.btn-ghost {
+  background: rgba(255,255,255,0.04); color: var(--text-muted); border: 1px solid var(--border);
+}
+.btn-ghost:hover { color: var(--primary); border-color: var(--primary); }
 .btn-danger { background: var(--danger); color: #fff; }
-.btn-full { width: 100%; }
-.btn-sm { padding: 6px 12px; font-size: 0.82rem; border-radius: 7px; }
+.btn-full  { width: 100%; }
+.btn-sm    { padding: 6px 12px; font-size: 0.8rem; border-radius: 7px; }
 
 /* ===================== Card ===================== */
 .card-wrap {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  perspective: 1000px;
-  min-height: 0;
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  perspective: 1000px; min-height: 0;
 }
 .card-inner {
-  width: 100%;
-  max-width: 520px;
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 0.45s cubic-bezier(.4,0,.2,1);
+  width: 100%; max-width: 520px; position: relative;
+  transform-style: preserve-3d; transition: transform 0.45s cubic-bezier(.4,0,.2,1);
 }
 .card-inner.flipped { transform: rotateY(180deg); }
 .card-face {
-  background: var(--surface);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 20px;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  background: var(--surface); border-radius: var(--radius);
+  box-shadow: var(--card-glow); padding: 20px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  border: 1px solid rgba(201,168,76,0.18); position: relative;
 }
 .card-back-face {
-  position: absolute;
-  inset: 0;
-  transform: rotateY(180deg);
-  overflow-y: auto;
-  max-height: calc(100dvh - 200px);
+  position: absolute; inset: 0; transform: rotateY(180deg);
+  overflow-y: auto; max-height: calc(100dvh - 200px);
+}
+
+/* Gold top line on card */
+.card-face::before {
+  content: ''; position: absolute; top: 0; left: 10%; right: 10%;
+  height: 2px; background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  border-radius: 2px; opacity: 0.6;
+}
+
+/* ===================== Word Number Badge ===================== */
+.word-num-badge {
+  position: absolute; top: 10px; left: 14px;
+  font-size: 0.68rem; font-weight: 700; color: var(--primary-dark);
+  background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.2);
+  padding: 2px 7px; border-radius: 6px; letter-spacing: 0.04em;
+  z-index: 1;
 }
 
 /* Card Front */
 .card-front-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 180px;
-  gap: 8px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 180px; gap: 8px;
 }
 .word-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: wrap; justify-content: center;
 }
 .word-main {
-  font-size: clamp(2rem, 8vw, 3.5rem);
-  font-weight: 700;
-  color: var(--text);
+  font-size: clamp(2rem, 8vw, 3.5rem); font-weight: 800; color: #fff;
   line-height: 1.2;
+  text-shadow: 0 0 30px rgba(201,168,76,0.4), 0 2px 4px rgba(0,0,0,0.8);
+  letter-spacing: 0.04em;
 }
-.word-hint { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+.word-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
 
 /* Card Back */
 .card-back-content { display: flex; flex-direction: column; gap: 8px; }
-.back-word-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.back-word { font-size: 1.5rem; font-weight: 700; }
-.back-reading { font-size: 1rem; color: var(--text-muted); }
+.back-word-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.back-word { font-size: 1.5rem; font-weight: 800; color: #fff; text-shadow: 0 0 16px rgba(201,168,76,0.3); }
+.back-reading { font-size: 0.95rem; color: var(--text-muted); }
 .back-pos {
-  font-size: 0.78rem;
-  background: var(--primary-light);
-  color: var(--primary);
-  padding: 2px 8px;
-  border-radius: 20px;
-  font-weight: 600;
+  font-size: 0.75rem; background: rgba(201,168,76,0.15); color: var(--primary);
+  padding: 2px 10px; border-radius: 20px; font-weight: 700;
+  border: 1px solid rgba(201,168,76,0.25); display: inline-block; margin-top: 2px;
 }
 .back-zh {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--primary-dark);
-  border-left: 3px solid var(--primary);
-  padding-left: 10px;
+  font-size: 1.05rem; font-weight: 700; color: var(--primary);
+  border-left: 3px solid var(--primary); padding-left: 10px;
+  text-shadow: 0 0 16px rgba(201,168,76,0.3);
 }
 .back-example {
-  font-size: 0.88rem;
-  color: var(--text);
-  line-height: 1.5;
-  background: var(--bg);
-  padding: 8px 10px;
-  border-radius: 8px;
+  font-size: 0.88rem; color: var(--text); line-height: 1.6;
+  background: rgba(255,255,255,0.04); padding: 8px 10px;
+  border-radius: 8px; border: 1px solid var(--border);
 }
-.back-example-zh {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  line-height: 1.4;
-  padding: 0 4px;
-}
+.back-example-zh { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; padding: 0 4px; }
 .divider { height: 1px; background: var(--border); margin: 2px 0; }
 
 /* Speaker button */
 .btn-speaker {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--primary);
-  font-size: 1.2rem;
-  padding: 4px 6px;
-  border-radius: 6px;
-  flex-shrink: 0;
-  transition: background 0.15s;
+  background: none; border: 1px solid rgba(201,168,76,0.2); cursor: pointer;
+  color: var(--primary); font-size: 1.1rem; padding: 5px 8px; border-radius: 8px;
+  flex-shrink: 0; transition: background 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.btn-speaker:hover { background: var(--primary-light); }
+.btn-speaker:hover { background: var(--primary-light); box-shadow: 0 0 12px var(--primary-glow); }
 
 /* ===================== SRS Buttons ===================== */
 .srs-btns {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  flex-shrink: 0;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; flex-shrink: 0;
 }
 .srs-btn {
-  border: none;
-  border-radius: 10px;
-  padding: 10px 4px;
-  font-weight: 700;
-  font-size: 0.85rem;
-  cursor: pointer;
-  color: #fff;
-  transition: opacity 0.15s, transform 0.1s;
-  font-family: var(--font);
-  -webkit-tap-highlight-color: transparent;
+  border: none; border-radius: 10px; padding: 10px 4px; font-weight: 800;
+  font-size: 0.85rem; cursor: pointer; color: #fff;
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+  font-family: var(--font); -webkit-tap-highlight-color: transparent; letter-spacing: 0.02em;
 }
-.srs-btn:active { transform: scale(0.94); }
-.srs-again { background: var(--btn-again); }
-.srs-hard  { background: var(--btn-hard); }
-.srs-good  { background: var(--btn-good); }
-.srs-easy  { background: var(--btn-easy); }
-.srs-sub   { font-size: 0.7rem; font-weight: 400; opacity: 0.9; display: block; margin-top: 2px; }
+.srs-btn:active { transform: scale(0.93); }
+.srs-again { background: var(--btn-again); box-shadow: 0 2px 12px rgba(231,76,60,0.35); }
+.srs-hard  { background: var(--btn-hard);  box-shadow: 0 2px 12px rgba(230,126,34,0.35); }
+.srs-good  { background: var(--btn-good);  box-shadow: 0 2px 12px rgba(39,174,96,0.35); }
+.srs-easy  { background: var(--btn-easy);  box-shadow: 0 2px 12px rgba(41,128,185,0.35); }
+.srs-sub   { font-size: 0.68rem; font-weight: 400; opacity: 0.85; display: block; margin-top: 2px; }
 
 /* ===================== Quiz Buttons ===================== */
-.quiz-btns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  flex-shrink: 0;
-}
-.quiz-yes { background: var(--success); color: #fff; font-size: 1rem; }
-.quiz-no  { background: var(--danger); color: #fff; font-size: 1rem; }
+.quiz-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex-shrink: 0; }
+.quiz-yes { background: var(--success); color: #fff; font-size: 1rem; box-shadow: 0 2px 16px rgba(39,174,96,0.4); }
+.quiz-no  { background: var(--danger);  color: #fff; font-size: 1rem; box-shadow: 0 2px 16px rgba(231,76,60,0.4); }
 
 /* ===================== Progress Bar ===================== */
 .progress-area { flex-shrink: 0; }
 .progress-bar-bg {
-  height: 6px;
-  background: var(--border);
-  border-radius: 3px;
-  overflow: hidden;
-  margin-bottom: 6px;
+  height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px;
+  overflow: hidden; margin-bottom: 6px;
 }
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--primary), var(--btn-easy));
-  border-radius: 3px;
-  transition: width 0.3s;
+  background: linear-gradient(90deg, var(--primary-dark), var(--primary), #e8c878);
+  border-radius: 3px; transition: width 0.3s; box-shadow: 0 0 8px var(--primary-glow);
 }
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.progress-stats span { margin-left: 8px; }
-.stat-again { color: var(--btn-again); font-weight: 600; }
-.stat-hard  { color: var(--btn-hard); font-weight: 600; }
-.stat-good  { color: var(--btn-good); font-weight: 600; }
-.stat-easy  { color: var(--btn-easy); font-weight: 600; }
+.progress-info { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap; gap: 4px; }
+.progress-stats span { margin-left: 6px; }
+.stat-again { color: var(--btn-again); font-weight: 700; }
+.stat-hard  { color: var(--btn-hard);  font-weight: 700; }
+.stat-good  { color: var(--btn-good);  font-weight: 700; }
+.stat-easy  { color: var(--btn-easy);  font-weight: 700; }
 
 /* ===================== Login Screen ===================== */
-.login-hero {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  text-align: center;
+#screen-login { padding: 0; justify-content: center; align-items: center; overflow: hidden; }
+
+/* Sakura bare branch — right side decoration */
+.sakura-branch-right {
+  position: absolute; right: -8px; top: 0;
+  width: 140px; height: 65%; pointer-events: none; z-index: 1; opacity: 0.8;
 }
-.login-logo { font-size: 3rem; }
-.login-title { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
-.login-sub { font-size: 0.9rem; color: var(--text-muted); }
-.input-group { width: 100%; display: flex; flex-direction: column; gap: 8px; }
-.input-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-align: left; }
+
+/* Center content stack */
+.login-center {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: center;
+  width: 100%; max-width: 400px; padding: 0 0 20px;
+}
+
+/* Kabuto SVG */
+.kabuto-main {
+  width: min(185px, 46vw); height: auto; flex-shrink: 0;
+  filter: drop-shadow(0 0 22px rgba(201,168,76,0.55)) drop-shadow(0 -4px 14px rgba(201,168,76,0.2));
+  animation: kabutoPulse 5s ease-in-out infinite;
+  margin-bottom: -6px;
+}
+@keyframes kabutoPulse {
+  0%,100% { filter: drop-shadow(0 0 18px rgba(201,168,76,0.45)) drop-shadow(0 -4px 10px rgba(201,168,76,0.15)); }
+  50%      { filter: drop-shadow(0 0 38px rgba(201,168,76,0.72)) drop-shadow(0 -4px 22px rgba(201,168,76,0.35)); }
+}
+
+/* 單字王 title — engraved gold serif */
+.login-title-main {
+  font-size: clamp(2.8rem, 13vw, 4.2rem);
+  font-weight: 900;
+  font-family: 'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif;
+  background: linear-gradient(180deg,
+    #fdfae0 0%, #e8d060 10%,
+    #c9a84c 35%, #a07830 65%,
+    #6a4a14 88%, #3e2808 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  filter: drop-shadow(0 0 28px rgba(201,168,76,0.58));
+  letter-spacing: 0.12em; text-align: center; line-height: 1.1;
+  margin-bottom: 5px;
+}
+
+/* Subtitle */
+.login-sub-text {
+  font-size: 0.8rem; color: #8a7448; letter-spacing: 0.08em; margin-bottom: 14px;
+}
+
+/* Dark lacquer panel for form */
+.login-panel {
+  width: 100%; padding: 18px 20px 20px;
+  background: rgba(3, 2, 6, 0.88);
+  border-top: 1.5px solid #c9a84c;
+  border-bottom: 1.5px solid rgba(201,168,76,0.45);
+  border-left: 1px solid rgba(201,168,76,0.18);
+  border-right: 1px solid rgba(201,168,76,0.18);
+  display: flex; flex-direction: column; gap: 9px; position: relative;
+}
+.login-panel::before {
+  content: ''; position: absolute; top: 0; left: 8%; right: 8%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,248,160,0.5), transparent);
+}
+
+/* Labels */
+.lacquer-label {
+  font-size: 0.76rem; color: #8a7040; font-weight: 600; letter-spacing: 0.07em;
+}
+
+/* Japanese lacquer-style inputs */
+.lacquer-input, .lacquer-select {
+  width: 100%; padding: 11px 14px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255,255,255,0.013) 0px,
+      rgba(255,255,255,0.013) 1px,
+      transparent 1px,
+      transparent 6px
+    ), #060408;
+  border: 1px solid #4e3610;
+  border-top-color: #7a5818;
+  color: #c9a84c;
+  font-family: var(--font); font-size: 0.9rem;
+  outline: none; border-radius: 2px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none; appearance: none;
+}
+.lacquer-input::placeholder { color: #3e2c14; }
+.lacquer-input:focus, .lacquer-select:focus {
+  border-color: #c9a84c;
+  box-shadow: 0 0 14px rgba(201,168,76,0.2), inset 0 0 10px rgba(0,0,0,0.5);
+}
+.lacquer-select option { background: #0a0810; color: #c9a84c; }
+
+/* Select wrapper with custom icon */
+.lacquer-select-wrap { position: relative; }
+.lacquer-select-wrap::after {
+  content: '◆'; position: absolute; right: 12px; top: 50%;
+  transform: translateY(-50%); font-size: 0.55rem;
+  color: #8a6020; pointer-events: none;
+}
+
+/* Ornate kamon button */
+.kamon-btn {
+  width: 100%; padding: 14px 62px; position: relative; overflow: hidden;
+  background: linear-gradient(90deg,
+    #4e3408 0%, #6e4c12 5%, #a87820 14%,
+    #d8a838 26%, #f0c848 36%, #f8d858 50%,
+    #f0c848 64%, #d8a838 74%,
+    #a87820 86%, #6e4c12 95%, #4e3408 100%);
+  color: #160e02; font-size: 0.96rem; font-weight: 900;
+  font-family: var(--font); letter-spacing: 0.1em;
+  border: none;
+  border-top: 1.5px solid rgba(255,248,140,0.6);
+  border-bottom: 1.5px solid rgba(50,28,4,0.95);
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+}
+.kamon-btn:hover  { filter: brightness(1.08); }
+.kamon-btn:active { transform: scale(0.98); }
+
+/* Kamon rosette pattern on button sides */
+.kamon-btn::before, .kamon-btn::after {
+  content: ''; position: absolute; top: 50%; transform: translateY(-50%);
+  width: 44px; height: 44px; border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(0,0,0,0.3) 26%, transparent 27%),
+    repeating-conic-gradient(
+      rgba(60,36,6,0.55) 0deg 9deg,
+      rgba(180,130,20,0.22) 9deg 22.5deg
+    );
+  border: 1.5px solid rgba(80,52,10,0.65);
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.45), 0 0 6px rgba(201,168,76,0.15);
+}
+.kamon-btn::before { left: 6px; }
+.kamon-btn::after  { right: 6px; }
+
+/* ===== Legacy input-field kept for non-login screens ===== */
 .input-field {
-  width: 100%;
-  padding: 12px 14px;
-  border: 2px solid var(--border);
-  border-radius: 10px;
-  font-size: 1rem;
-  font-family: var(--font);
-  color: var(--text);
-  background: var(--surface);
-  outline: none;
-  transition: border-color 0.2s;
+  width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px;
+  font-size: 0.95rem; font-family: var(--font); color: var(--text); background: var(--surface2);
+  outline: none; transition: border-color 0.2s, box-shadow 0.2s;
 }
-.input-field:focus { border-color: var(--primary); }
+.input-field:focus { border-color: var(--primary); box-shadow: 0 0 12px rgba(201,168,76,0.2); }
 select.input-field { cursor: pointer; }
+select.input-field option { background: #16162e; }
 
 /* ===================== Level Select ===================== */
-.level-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
+.level-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .level-btn {
-  background: var(--surface);
-  border: 2px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px 12px;
-  cursor: pointer;
-  text-align: center;
-  transition: border-color 0.2s, transform 0.1s, background 0.2s;
-  -webkit-tap-highlight-color: transparent;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px 12px; cursor: pointer; text-align: center;
+  transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s, background 0.2s;
+  -webkit-tap-highlight-color: transparent; position: relative; overflow: hidden;
 }
-.level-btn:not(:disabled):hover { border-color: var(--primary); background: var(--primary-light); }
-.level-btn:not(:disabled):active { transform: scale(0.97); }
-.level-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.level-name { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
-.level-count { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
-.level-na { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+.level-btn::before {
+  content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  opacity: 0; transition: opacity 0.2s;
+}
+.level-btn:not(:disabled):hover { border-color: var(--primary); background: var(--surface2); box-shadow: 0 0 20px rgba(201,168,76,0.2); transform: translateY(-2px); }
+.level-btn:not(:disabled):hover::before { opacity: 1; }
+.level-btn:not(:disabled):active { transform: scale(0.97) translateY(0); }
+.level-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.level-name { font-size: 2rem; font-weight: 900; color: var(--primary); text-shadow: 0 0 16px var(--primary-glow); }
+.level-count { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+.level-na { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; }
 
 /* ===================== Mode Select ===================== */
-.mode-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex: 1;
-}
+.mode-grid { display: flex; flex-direction: column; gap: 8px; flex: 1; overflow-y: auto; }
 .mode-card {
-  background: var(--surface);
-  border: 2px solid var(--border);
-  border-radius: var(--radius);
-  padding: 18px;
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s, transform 0.1s;
-  -webkit-tap-highlight-color: transparent;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 18px; cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s, box-shadow 0.2s;
+  -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+  display: flex; flex-direction: column; justify-content: center;
+  position: relative; overflow: hidden;
 }
-.mode-card:hover { border-color: var(--primary); background: var(--primary-light); }
+.mode-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  opacity: 0; transition: opacity 0.2s;
+}
+.mode-card:hover { border-color: rgba(201,168,76,0.4); background: var(--surface2); box-shadow: 0 0 24px rgba(201,168,76,0.12); transform: translateY(-1px); }
+.mode-card:hover::before { opacity: 1; }
 .mode-card:active { transform: scale(0.98); }
-.mode-icon { font-size: 2rem; margin-bottom: 6px; }
-.mode-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
-.mode-desc { font-size: 0.82rem; color: var(--text-muted); }
+.mode-card:disabled, .mode-card.disabled { opacity: 0.35; cursor: not-allowed; transform: none; pointer-events: none; }
+.mode-icon { font-size: 1.5rem; margin-bottom: 3px; }
+.mode-title { font-size: 1rem; font-weight: 800; margin-bottom: 2px; color: var(--primary); letter-spacing: 0.04em; }
+.mode-desc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; }
 
 /* ===================== Progress Screen ===================== */
 .progress-screen-content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-.progress-card {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  box-shadow: var(--shadow);
-}
-.progress-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.progress-level-tag {
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: var(--primary);
-}
-.progress-row { display: flex; justify-content: space-between; font-size: 0.83rem; margin: 3px 0; }
+.progress-card { background: var(--surface); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--card-glow); border: 1px solid rgba(201,168,76,0.15); }
+.progress-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.progress-level-tag { font-size: 1.3rem; font-weight: 900; color: var(--primary); text-shadow: 0 0 12px var(--primary-glow); }
+.progress-row { display: flex; justify-content: space-between; font-size: 0.82rem; margin: 3px 0; }
 .progress-row strong { color: var(--text); }
 .progress-row span { color: var(--text-muted); }
-.progress-percent {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: var(--success);
-}
-.reset-row {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-  flex-wrap: wrap;
-}
+.progress-percent { font-size: 1.5rem; font-weight: 900; color: var(--success); text-shadow: 0 0 12px rgba(39,174,96,0.4); }
+.reset-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 
 /* ===================== Mastered List ===================== */
-.mastered-controls {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-}
+.mastered-controls { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
 .mastered-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .mastered-item {
-  background: var(--surface);
-  border-radius: 10px;
-  padding: 10px 14px;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  border: 1px solid var(--border);
-  transition: border-color 0.15s, background 0.15s;
+  background: var(--surface); border-radius: 10px; padding: 10px 14px; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  border: 1px solid var(--border); transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.mastered-item:hover { border-color: var(--primary); background: var(--primary-light); }
-.mastered-word { font-size: 1.1rem; font-weight: 700; }
-.mastered-zh { font-size: 0.82rem; color: var(--text-muted); }
-.mastered-count { font-size: 0.8rem; color: var(--text-muted); text-align: right; }
+.mastered-item:hover { border-color: rgba(201,168,76,0.4); background: var(--surface2); box-shadow: 0 0 12px rgba(201,168,76,0.1); }
+.mastered-word { font-size: 1.1rem; font-weight: 700; color: #fff; }
+.mastered-zh { font-size: 0.8rem; color: var(--text-muted); }
+
+/* ===================== Quiz Review (wrong words list) ===================== */
+.review-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.review-item {
+  background: var(--surface); border-radius: 10px; padding: 10px 14px; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  border: 1px solid rgba(231,76,60,0.25);
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.review-item:hover { border-color: rgba(231,76,60,0.5); background: var(--surface2); box-shadow: 0 0 12px rgba(231,76,60,0.1); }
+.review-item-word { font-size: 1.1rem; font-weight: 700; color: #fff; }
+.review-item-zh { font-size: 0.8rem; color: var(--text-muted); }
+.review-item-num { font-size: 0.72rem; color: var(--text-muted); }
+
+/* Word detail (static front+back view, no flip) */
+.detail-static {
+  background: var(--surface); border-radius: var(--radius);
+  box-shadow: var(--card-glow); padding: 20px; width: 100%; max-width: 520px;
+  border: 1px solid rgba(201,168,76,0.18); position: relative;
+}
+.detail-static::before {
+  content: ''; position: absolute; top: 0; left: 10%; right: 10%;
+  height: 2px; background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  border-radius: 2px; opacity: 0.6;
+}
+.detail-word-main {
+  font-size: clamp(2rem, 8vw, 3rem); font-weight: 800; color: #fff;
+  text-shadow: 0 0 30px rgba(201,168,76,0.4); letter-spacing: 0.04em;
+  text-align: center; margin-bottom: 4px;
+}
+.detail-divider {
+  height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 10px 0;
+}
 
 /* ===================== Completion Screen ===================== */
-.completion-screen {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  text-align: center;
-  padding: 20px;
-}
-.completion-emoji { font-size: 3.5rem; }
-.completion-title { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
-.completion-score { font-size: 2.5rem; font-weight: 800; }
-.completion-sub { font-size: 0.9rem; color: var(--text-muted); max-width: 300px; }
+.completion-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 20px; }
+.completion-emoji { font-size: 3.5rem; filter: drop-shadow(0 0 16px rgba(201,168,76,0.5)); }
+.completion-title { font-size: 1.5rem; font-weight: 900; color: var(--primary); text-shadow: 0 0 20px var(--primary-glow); letter-spacing: 0.04em; }
+.completion-score { font-size: 3rem; font-weight: 900; color: #fff; text-shadow: 0 0 30px rgba(201,168,76,0.5); }
+.completion-sub { font-size: 0.88rem; color: var(--text-muted); max-width: 300px; }
 .completion-btns { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 300px; }
 
 /* ===================== Info Modal ===================== */
 .modal-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 100;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  z-index: 100; align-items: center; justify-content: center; padding: 16px;
+  backdrop-filter: blur(4px);
 }
 .modal-overlay.open { display: flex; }
 .modal-box {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 20px;
-  max-width: 380px;
-  width: 100%;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+  background: var(--surface2); border-radius: var(--radius); padding: 20px;
+  max-width: 380px; width: 100%;
+  box-shadow: 0 0 0 1px rgba(201,168,76,0.2), 0 20px 60px rgba(0,0,0,0.8);
+  border: 1px solid rgba(201,168,76,0.2);
 }
-.modal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; color: var(--primary); }
-.shortcut-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.modal-title { font-size: 1.05rem; font-weight: 800; margin-bottom: 12px; color: var(--primary); letter-spacing: 0.04em; }
+.shortcut-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; color: var(--text); }
 .shortcut-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
 .shortcut-table td:first-child { font-weight: 700; color: var(--primary); width: 80px; }
 kbd {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 0.8rem;
-  font-family: monospace;
+  background: rgba(255,255,255,0.07); border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 6px; font-size: 0.78rem; font-family: monospace; color: var(--text);
 }
 
 /* ===================== Toast ===================== */
 .toast {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%) translateY(100px);
-  background: var(--text);
-  color: #fff;
-  padding: 10px 20px;
-  border-radius: 20px;
-  font-size: 0.88rem;
-  z-index: 200;
-  transition: transform 0.3s;
-  white-space: nowrap;
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--surface2); color: var(--text);
+  border: 1px solid rgba(201,168,76,0.3); padding: 10px 20px; border-radius: 20px;
+  font-size: 0.85rem; z-index: 200; transition: transform 0.3s; white-space: nowrap;
+  box-shadow: 0 0 20px rgba(201,168,76,0.2);
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
 
-/* ===================== Word Detail (from mastered) ===================== */
-.detail-nav { display: flex; gap: 8px; flex-shrink: 0; }
-
 /* ===================== Loading ===================== */
-.loading {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  gap: 8px;
-}
-.spinner {
-  width: 20px; height: 20px;
-  border: 2px solid var(--border);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
+.loading { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.88rem; gap: 8px; }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ===================== Empty State ===================== */
-.empty-state { text-align: center; color: var(--text-muted); font-size: 0.9rem; padding: 30px; }
+.empty-state { text-align: center; color: var(--text-muted); font-size: 0.88rem; padding: 30px; line-height: 1.8; }
+
+/* ===================== Scrollbar ===================== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(201,168,76,0.3); }
 
 /* ===================== Responsive ===================== */
 @media (min-width: 480px) {
@@ -512,38 +589,284 @@ kbd {
   .card-face { padding: 14px; }
   .card-front-content { min-height: 120px; }
   .word-main { font-size: 2rem; }
+  .kabuto-logo { width: 110px; height: 145px; }
+  .login-hero { gap: 6px; }
 }
 </style>
 </head>
 <body>
+
+<!-- Kintsugi gold crack lines (prominent left + right, like lacquerware) -->
+<div class="kintsugi">
+  <svg width="100%" height="100%" viewBox="0 0 400 860" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="crackGlow">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="1.8" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <!-- LEFT side — main thick diagonal crack (like reference) -->
+    <path d="M 18 80 Q 32 140 22 220 Q 12 300 38 380 Q 58 440 30 540 Q 10 620 28 720"
+          stroke="#c9a84c" stroke-width="1.8" fill="none" opacity="0.55" filter="url(#crackGlow)"/>
+    <!-- Left crack branch 1 -->
+    <path d="M 22 220 Q 52 215 78 238 Q 95 252 80 278"
+          stroke="#c9a84c" stroke-width="1.1" fill="none" opacity="0.38" filter="url(#crackGlow)"/>
+    <!-- Left crack branch 2 (short) -->
+    <path d="M 38 380 Q 68 372 88 390"
+          stroke="#c9a84c" stroke-width="0.9" fill="none" opacity="0.28"/>
+    <!-- Left micro cracks -->
+    <path d="M 32 140 Q 50 135 62 148" stroke="#c9a84c" stroke-width="0.6" fill="none" opacity="0.22"/>
+    <path d="M 28 720 Q 55 710 70 740 Q 80 760 55 780"
+          stroke="#c9a84c" stroke-width="1" fill="none" opacity="0.32" filter="url(#crackGlow)"/>
+
+    <!-- RIGHT side — secondary crack system -->
+    <path d="M 368 60 Q 355 130 372 210 Q 385 280 358 360 Q 340 420 368 510"
+          stroke="#c9a84c" stroke-width="1.4" fill="none" opacity="0.42" filter="url(#crackGlow)"/>
+    <!-- Right branch -->
+    <path d="M 372 210 Q 342 205 318 228 Q 302 248 316 272"
+          stroke="#c9a84c" stroke-width="0.9" fill="none" opacity="0.3"/>
+    <path d="M 358 360 Q 330 355 310 375"
+          stroke="#c9a84c" stroke-width="0.7" fill="none" opacity="0.22"/>
+
+    <!-- Bottom small cracks -->
+    <path d="M 120 740 Q 148 718 175 748 Q 195 768 168 800"
+          stroke="#c9a84c" stroke-width="0.9" fill="none" opacity="0.28"/>
+    <path d="M 240 780 Q 268 758 290 790"
+          stroke="#c9a84c" stroke-width="0.7" fill="none" opacity="0.2"/>
+  </svg>
+</div>
+
+<!-- Floating sakura petals -->
+<div class="sakura" id="sakura"></div>
+
 <div id="app">
 
   <!-- ===== Login Screen ===== -->
   <div id="screen-login" class="screen active">
-    <div class="login-hero">
-      <div class="login-logo">🎌</div>
-      <div class="login-title">JLPT 單字王</div>
-      <div class="login-sub">請輸入你的名字開始學習</div>
-      <div class="input-group" style="max-width:320px;width:100%">
-        <label class="input-label">選擇已有帳號</label>
-        <select id="user-select" class="input-field">
-          <option value="">── 選擇 ──</option>
-        </select>
-        <label class="input-label">或輸入新名字</label>
-        <input id="name-input" class="input-field" type="text" placeholder="你的名字" maxlength="20" autocomplete="off">
-        <button id="btn-login" class="btn btn-primary btn-full">開始！</button>
+
+    <!-- Sakura bare branch (right side) -->
+    <svg class="sakura-branch-right" viewBox="0 0 140 560" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="budG" cx="40%" cy="30%" r="65%">
+          <stop offset="0%" stop-color="#ffdde6"/>
+          <stop offset="100%" stop-color="#d890a8"/>
+        </radialGradient>
+      </defs>
+      <!-- Main trunk -->
+      <path d="M 130 560 Q 118 450,108 340 Q 96 230,115 110 Q 122 50,105 -20"
+            stroke="#180f08" stroke-width="10" fill="none" stroke-linecap="round"/>
+      <!-- Upper-left sub branch -->
+      <path d="M 112 160 Q 72 132, 32 104 Q 14 92, 2 74"
+            stroke="#180f08" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <!-- Middle sub branch -->
+      <path d="M 106 310 Q 64 290, 28 272"
+            stroke="#180f08" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+      <!-- Small twig 1 -->
+      <path d="M 32 104 Q 20 86, 12 70"
+            stroke="#180f08" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <!-- Small twig 2 -->
+      <path d="M 109 228 Q 84 212, 66 206"
+            stroke="#180f08" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+      <!-- === Sakura blossoms / buds === -->
+      <!-- Cluster near top -->
+      <circle cx="106" cy="5"  r="5.5" fill="url(#budG)" opacity="0.88"/>
+      <circle cx="96"  cy="18" r="4.5" fill="#ffc8d8" opacity="0.75"/>
+      <circle cx="116" cy="22" r="4"   fill="#ffe0ea" opacity="0.7"/>
+      <circle cx="100" cy="32" r="3.5" fill="url(#budG)" opacity="0.65"/>
+      <!-- Cluster upper branch end -->
+      <circle cx="4"   cy="72" r="5.5" fill="url(#budG)" opacity="0.82"/>
+      <circle cx="18"  cy="64" r="5"   fill="#ffc8d8" opacity="0.78"/>
+      <circle cx="10"  cy="52" r="4"   fill="#ffe0ea" opacity="0.68"/>
+      <circle cx="28"  cy="78" r="3.5" fill="url(#budG)" opacity="0.6"/>
+      <circle cx="20"  cy="82" r="3"   fill="#ffc8d8" opacity="0.55"/>
+      <!-- Middle branch cluster -->
+      <circle cx="66"  cy="202" r="4.5" fill="url(#budG)" opacity="0.7"/>
+      <circle cx="54"  cy="210" r="3.8" fill="#ffc8d8" opacity="0.62"/>
+      <circle cx="74"  cy="218" r="3.2" fill="#ffe0ea" opacity="0.55"/>
+      <!-- Loose petals floating near branches -->
+      <ellipse cx="88"  cy="12"  rx="4"   ry="2.8" fill="#ffb7c5" opacity="0.48" transform="rotate(-22 88 12)"/>
+      <ellipse cx="20"  cy="44"  rx="3.5" ry="2.4" fill="#ffb7c5" opacity="0.42" transform="rotate(16 20 44)"/>
+      <ellipse cx="48"  cy="260" rx="3"   ry="2"   fill="#ffb7c5" opacity="0.38" transform="rotate(-8 48 260)"/>
+      <ellipse cx="120" cy="390" rx="3.5" ry="2.5" fill="#ffb7c5" opacity="0.3" transform="rotate(12 120 390)"/>
+    </svg>
+
+    <!-- Center content -->
+    <div class="login-center">
+
+      <!-- ===== Kabuto (Samurai Helmet) SVG ===== -->
+      <svg class="kabuto-main" viewBox="0 0 200 228" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- Dome: dark metallic — blue-black lacquer, light from upper-left -->
+          <radialGradient id="domeG" cx="34%" cy="24%" r="72%">
+            <stop offset="0%"   stop-color="#282646"/>
+            <stop offset="28%"  stop-color="#0d0c1c"/>
+            <stop offset="100%" stop-color="#040308"/>
+          </radialGradient>
+          <!-- Gold: top-bright, bottom-dark -->
+          <linearGradient id="gV" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%"   stop-color="#f6f090"/>
+            <stop offset="18%"  stop-color="#d4b040"/>
+            <stop offset="55%"  stop-color="#8a6018"/>
+            <stop offset="100%" stop-color="#3c2506"/>
+          </linearGradient>
+          <!-- Gold horizontal (diamond frame) -->
+          <linearGradient id="gH" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stop-color="#6a4a0e"/>
+            <stop offset="25%"  stop-color="#d4b040"/>
+            <stop offset="50%"  stop-color="#f6f090"/>
+            <stop offset="75%"  stop-color="#d4b040"/>
+            <stop offset="100%" stop-color="#6a4a0e"/>
+          </linearGradient>
+          <!-- Shikoro plate fill -->
+          <linearGradient id="pG" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%"   stop-color="#121026"/>
+            <stop offset="100%" stop-color="#05040c"/>
+          </linearGradient>
+          <!-- Kuwagata body fill -->
+          <linearGradient id="kwFill" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%"   stop-color="#1a1830"/>
+            <stop offset="100%" stop-color="#05040e"/>
+          </linearGradient>
+          <!-- Gold glow filter -->
+          <filter id="gg" x="-55%" y="-55%" width="210%" height="210%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="2.8" result="b"/>
+            <feFlood flood-color="#c9a84c" flood-opacity="0.7" result="c"/>
+            <feComposite in="c" in2="b" operator="in" result="g"/>
+            <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- Ambient gold halo ring -->
+        <ellipse cx="100" cy="107" rx="80" ry="70" fill="none"
+                 stroke="rgba(201,168,76,0.07)" stroke-width="14"/>
+
+        <!-- ── KUWAGATA (elaborate curving golden horns) ── -->
+        <!-- Left horn body -->
+        <path d="M 66 113
+                 C 43 104, 22 84, 24 57
+                 C 26 36, 43 26, 52 43
+                 C 58 56, 53 79, 59 102"
+              fill="url(#kwFill)" stroke="url(#gV)" stroke-width="3"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Left horn inner bright edge -->
+        <path d="M 61 106 C 44 97, 31 79, 32 58 C 34 43, 49 35, 55 48"
+              fill="none" stroke="#f5ee88" stroke-width="0.9" opacity="0.38"/>
+        <!-- Right horn body -->
+        <path d="M 134 113
+                 C 157 104, 178 84, 176 57
+                 C 174 36, 157 26, 148 43
+                 C 142 56, 147 79, 141 102"
+              fill="url(#kwFill)" stroke="url(#gV)" stroke-width="3"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Right horn inner bright edge -->
+        <path d="M 139 106 C 156 97, 169 79, 168 58 C 166 43, 151 35, 145 48"
+              fill="none" stroke="#f5ee88" stroke-width="0.9" opacity="0.38"/>
+        <!-- Horn tip ornaments (gold orbs with specular) -->
+        <circle cx="25" cy="55" r="6.5" fill="url(#gV)" filter="url(#gg)"/>
+        <circle cx="22" cy="52" r="2.4" fill="#fffff0" opacity="0.45"/>
+        <circle cx="175" cy="55" r="6.5" fill="url(#gV)" filter="url(#gg)"/>
+        <circle cx="172" cy="52" r="2.4" fill="#fffff0" opacity="0.45"/>
+
+        <!-- ── MAEDATE (front crest arc + orb) ── -->
+        <path d="M 82 57 Q 100 40 118 57"
+              fill="none" stroke="#f5ee88" stroke-width="3" stroke-linecap="round"/>
+        <path d="M 87 54 Q 100 42 113 54"
+              fill="none" stroke="#fff9d0" stroke-width="1" opacity="0.4"/>
+        <circle cx="100" cy="52" r="5.8" fill="url(#gV)" filter="url(#gg)"/>
+        <circle cx="97"  cy="49" r="2.2" fill="#fffff0" opacity="0.5"/>
+
+        <!-- ── DOME (main helmet bowl) ── -->
+        <path d="M 26 116 Q 24 52 100 46 Q 176 52 174 116 Z"
+              fill="url(#domeG)" stroke="url(#gV)" stroke-width="1.9"/>
+        <!-- Dome specular highlight (polished lacquer) -->
+        <ellipse cx="70" cy="72" rx="28" ry="17" fill="rgba(170,165,225,0.07)"
+                 transform="rotate(-20 70 72)"/>
+        <ellipse cx="62" cy="63" rx="11"  ry="7"  fill="rgba(255,255,255,0.038)"
+                 transform="rotate(-20 62 63)"/>
+        <!-- Maki-e decorations on dome -->
+        <line x1="100" y1="47" x2="100" y2="116"
+              stroke="#c9a84c" stroke-width="0.7" opacity="0.26"/>
+        <path d="M 36 98 Q 100 90 164 98"
+              fill="none" stroke="#c9a84c" stroke-width="1.1" opacity="0.2"/>
+        <path d="M 42 82 Q 100 74 158 82"
+              fill="none" stroke="#c9a84c" stroke-width="0.65" opacity="0.13"/>
+        <!-- Subtle diagonal brush strokes -->
+        <path d="M 54 55 Q 47 73, 40 94" fill="none" stroke="#c9a84c" stroke-width="0.5" opacity="0.1"/>
+        <path d="M 146 55 Q 153 73, 160 94" fill="none" stroke="#c9a84c" stroke-width="0.5" opacity="0.1"/>
+
+        <!-- ── FUKIGAESHI (side turned-back pieces) ── -->
+        <path d="M 26 116 Q 12 113 12 99 Q 12 85 25 92 L 29 109"
+              fill="url(#domeG)" stroke="url(#gV)" stroke-width="1.4"/>
+        <path d="M 174 116 Q 188 113 188 99 Q 188 85 175 92 L 171 109"
+              fill="url(#domeG)" stroke="url(#gV)" stroke-width="1.4"/>
+
+        <!-- ── SHIKORO (layered neck guard plates) ── -->
+        <!-- Plate 1 — filled, with gold edge -->
+        <path d="M 26 116 Q 23 134 100 143 Q 177 134 174 116"
+              fill="url(#pG)" stroke="url(#gV)" stroke-width="1.8"/>
+        <path d="M 32 116 Q 30 130 100 138 Q 170 130 168 116"
+              fill="none" stroke="#f5ee88" stroke-width="0.5" opacity="0.16"/>
+        <!-- Plate 2 — outline only -->
+        <path d="M 20 127 Q 16 150 100 160 Q 184 150 180 127"
+              fill="none" stroke="url(#gH)" stroke-width="1.3" opacity="0.52"/>
+        <!-- Plate 3 — faintest hint -->
+        <path d="M 15 136 Q 9 163 100 175 Q 191 163 185 136"
+              fill="none" stroke="#8a6018" stroke-width="0.9" opacity="0.32"/>
+
+        <!-- ── DIAMOND EMBLEM ── -->
+        <path d="M 100 170 L 55 192 L 100 214 L 145 192 Z"
+              fill="#030210" stroke="url(#gH)" stroke-width="2.3" filter="url(#gg)"/>
+        <!-- Inner frame -->
+        <path d="M 100 175 L 62 192 L 100 209 L 138 192 Z"
+              fill="none" stroke="#c9a84c" stroke-width="0.65" opacity="0.25"/>
+        <!-- Sakura blossom dots on diamond points -->
+        <circle cx="55"  cy="192" r="3.8" fill="#ffb7c5" opacity="0.82" filter="url(#gg)"/>
+        <circle cx="145" cy="192" r="3.8" fill="#ffb7c5" opacity="0.82" filter="url(#gg)"/>
+        <!-- 王 kanji -->
+        <text x="100" y="197" text-anchor="middle" dominant-baseline="middle"
+              font-family="'Hiragino Mincho ProN','Yu Mincho',Georgia,serif"
+              font-size="25" font-weight="900" fill="url(#gH)" filter="url(#gg)">王</text>
+        <!-- JLPT -->
+        <text x="100" y="221" text-anchor="middle"
+              font-family="sans-serif" font-size="8.5" font-weight="700"
+              fill="#8a6018" letter-spacing="5.5">JLPT</text>
+
+        <!-- Floating sakura petals (subtle accents) -->
+        <ellipse cx="13"  cy="78"  rx="5"   ry="3.5" fill="#ffb7c5" opacity="0.48" transform="rotate(-28 13 78)"/>
+        <ellipse cx="187" cy="64"  rx="4.5" ry="3"   fill="#ffb7c5" opacity="0.44" transform="rotate(22 187 64)"/>
+        <ellipse cx="11"  cy="142" rx="3.5" ry="2.5" fill="#ffb7c5" opacity="0.34" transform="rotate(8 11 142)"/>
+        <ellipse cx="189" cy="130" rx="4"   ry="2.8" fill="#ffb7c5" opacity="0.38" transform="rotate(-14 189 130)"/>
+      </svg>
+
+      <!-- Title & subtitle -->
+      <div class="login-title-main">單字王</div>
+      <div class="login-sub-text">請輸入你的名字開始學習</div>
+
+      <!-- Form panel (Japanese lacquer style) -->
+      <div class="login-panel">
+        <div class="lacquer-label">▸ 選擇已有帳號</div>
+        <div class="lacquer-select-wrap">
+          <select id="user-select" class="lacquer-select">
+            <option value="">── 選擇 ──</option>
+          </select>
+        </div>
+        <div class="lacquer-label">▸ 或輸入新名字</div>
+        <input id="name-input" class="lacquer-input" type="text"
+               placeholder="你的名字" maxlength="20" autocomplete="off">
+        <button id="btn-login" class="kamon-btn">開始挑戰 ✕</button>
       </div>
+
     </div>
   </div>
 
   <!-- ===== Level Select Screen ===== -->
   <div id="screen-level" class="screen">
     <div class="header">
-      <div class="header-title">🎌 JLPT 單字王</div>
+      <div class="header-title">⛩ JLPT 單字王</div>
       <div id="header-user" class="header-user"></div>
       <button class="btn btn-ghost btn-sm" onclick="logout()">登出</button>
     </div>
-    <div style="font-size:0.9rem;color:var(--text-muted);font-weight:600;padding:4px 0">選擇練習等級</div>
+    <div style="font-size:0.8rem;color:var(--text-muted);font-weight:700;padding:2px 0;letter-spacing:0.08em">選擇練習等級</div>
     <div class="level-grid" id="level-grid"></div>
     <div style="margin-top:auto;display:flex;gap:8px;">
       <button class="btn btn-outline btn-full" onclick="showScreen('progress')">📊 學習記錄</button>
@@ -565,7 +888,12 @@ kbd {
       <div class="mode-card" onclick="startQuiz()">
         <div class="mode-icon">📝</div>
         <div class="mode-title">測驗模式</div>
-        <div class="mode-desc">隨機 50 個單字測驗，測試自己的實力並計算分數</div>
+        <div class="mode-desc">隨機 50 個單字測驗，按「會 / 不會」計算分數，記錄錯誤單字</div>
+      </div>
+      <div class="mode-card" id="review-mode-card" onclick="startReviewMode()">
+        <div class="mode-icon">🔍</div>
+        <div class="mode-title">測驗檢討模式</div>
+        <div class="mode-desc" id="review-mode-desc">從錯誤單字列表隨機練習 20 個，按 Easy 可移除</div>
       </div>
       <div class="mode-card" onclick="showMastered()">
         <div class="mode-icon">⭐</div>
@@ -582,33 +910,30 @@ kbd {
       <div class="header-title" id="study-level-title"></div>
       <button class="btn btn-ghost btn-sm" id="study-info-btn" onclick="showModal()">ⓘ</button>
     </div>
-
     <div class="progress-area">
       <div class="progress-bar-bg"><div class="progress-bar-fill" id="study-progress-fill" style="width:0%"></div></div>
       <div class="progress-info">
         <span id="study-progress-text">0 / 0</span>
         <span class="progress-stats">
           <span class="stat-again" id="stat-again">再:0</span>
-          <span class="stat-hard" id="stat-hard">難:0</span>
-          <span class="stat-good" id="stat-good">好:0</span>
-          <span class="stat-easy" id="stat-easy">易:0</span>
+          <span class="stat-hard"  id="stat-hard">難:0</span>
+          <span class="stat-good"  id="stat-good">好:0</span>
+          <span class="stat-easy"  id="stat-easy">易:0</span>
         </span>
       </div>
     </div>
-
     <div class="card-wrap" id="study-card-wrap">
       <div class="card-inner" id="study-card-inner">
-        <!-- Front -->
         <div class="card-face" id="study-front" onclick="flipCard()">
+          <div class="word-num-badge" id="study-word-num">#000</div>
           <div class="card-front-content">
             <div class="word-row">
               <span class="word-main" id="study-word"></span>
               <button class="btn-speaker" id="study-speaker-front" onclick="event.stopPropagation();playAudio()" title="播放發音">🔊</button>
             </div>
-            <div class="word-hint">按空白鍵或點擊卡片翻面</div>
+            <div class="word-hint" id="study-hint">按空白鍵或點擊卡片翻面</div>
           </div>
         </div>
-        <!-- Back -->
         <div class="card-face card-back-face" id="study-back">
           <div class="card-back-content">
             <div class="back-word-row">
@@ -625,15 +950,12 @@ kbd {
         </div>
       </div>
     </div>
-
-    <!-- SRS Buttons (shown when card is flipped) -->
     <div class="srs-btns" id="srs-btns" style="display:none">
       <button class="srs-btn srs-again" onclick="srsAction('again')">Again<span class="srs-sub">1鍵</span></button>
       <button class="srs-btn srs-hard"  onclick="srsAction('hard')">Hard<span class="srs-sub">2鍵</span></button>
       <button class="srs-btn srs-good"  onclick="srsAction('good')">Good<span class="srs-sub">3鍵</span></button>
-      <button class="srs-btn srs-easy"  onclick="srsAction('easy')">Easy<span class="srs-sub">4鍵</span></button>
+      <button class="srs-btn srs-easy"  id="srs-easy-btn" onclick="srsAction('easy')">Easy<span class="srs-sub">4鍵</span></button>
     </div>
-    <!-- Flip hint (shown when card is not flipped) -->
     <div id="flip-hint" class="srs-btns" style="justify-content:center">
       <button class="btn btn-primary" style="grid-column:1/-1;width:100%;max-width:300px;margin:0 auto" onclick="flipCard()">翻面查看答案</button>
     </div>
@@ -645,17 +967,16 @@ kbd {
       <button class="btn btn-ghost btn-sm" onclick="confirmQuit('quiz')">✕ 結束</button>
       <div class="header-title" id="quiz-level-title"></div>
     </div>
-
     <div class="progress-area">
       <div class="progress-bar-bg"><div class="progress-bar-fill" id="quiz-progress-fill" style="width:0%"></div></div>
       <div class="progress-info">
-        <span id="quiz-progress-text">0 / 50</span>
+        <span id="quiz-progress-text">剩餘 50 / 50</span>
         <span>✅ <span id="quiz-yes-count">0</span> &nbsp; ❌ <span id="quiz-no-count">0</span></span>
       </div>
     </div>
-
     <div class="card-wrap" id="quiz-card-wrap">
-      <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px 20px;width:100%;max-width:520px">
+      <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--card-glow);padding:28px 20px;width:100%;max-width:520px;border:1px solid rgba(201,168,76,0.18);position:relative;">
+        <div class="word-num-badge" id="quiz-word-num">#000</div>
         <div class="card-front-content">
           <div class="word-row">
             <span class="word-main" id="quiz-word"></span>
@@ -664,9 +985,8 @@ kbd {
         </div>
       </div>
     </div>
-
     <div class="quiz-btns">
-      <button class="btn srs-btn quiz-no" onclick="quizAction(false)">✕ 不會<span class="srs-sub">N 鍵</span></button>
+      <button class="btn srs-btn quiz-no"  onclick="quizAction(false)">✕ 不會<span class="srs-sub">N 鍵</span></button>
       <button class="btn srs-btn quiz-yes" onclick="quizAction(true)">✓ 會<span class="srs-sub">Y 鍵</span></button>
     </div>
   </div>
@@ -694,7 +1014,7 @@ kbd {
     </div>
   </div>
 
-  <!-- ===== Word Detail Screen ===== -->
+  <!-- ===== Word Detail Screen (mastered list detail) ===== -->
   <div id="screen-word-detail" class="screen">
     <div class="header">
       <button class="btn btn-ghost btn-sm" onclick="showScreen('mastered')">← 返回列表</button>
@@ -702,26 +1022,26 @@ kbd {
       <button class="btn btn-ghost btn-sm" onclick="showScreen('level')">返回主頁</button>
     </div>
     <div class="card-wrap">
-      <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;width:100%;max-width:520px">
+      <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--card-glow);padding:20px;width:100%;max-width:520px;border:1px solid rgba(201,168,76,0.18);">
         <div class="card-back-content" id="detail-content"></div>
       </div>
     </div>
   </div>
 
-  <!-- ===== Study Completion Screen ===== -->
+  <!-- ===== Study Completion ===== -->
   <div id="screen-study-complete" class="screen">
     <div class="completion-screen">
       <div class="completion-emoji">🎉</div>
-      <div class="completion-title">恭喜你完成本次學習，你好棒！</div>
+      <div class="completion-title" id="study-complete-title">恭喜完成本次學習！</div>
       <div class="completion-sub" id="study-complete-sub"></div>
       <div class="completion-btns">
-        <button class="btn btn-primary btn-full" onclick="startStudy()">繼續下一個練習</button>
+        <button class="btn btn-primary btn-full" id="study-continue-btn" onclick="startStudy()">繼續下一個練習</button>
         <button class="btn btn-outline btn-full" onclick="showScreen('level')">返回主頁</button>
       </div>
     </div>
   </div>
 
-  <!-- ===== Quiz Completion Screen ===== -->
+  <!-- ===== Quiz Completion ===== -->
   <div id="screen-quiz-complete" class="screen">
     <div class="completion-screen">
       <div class="completion-emoji" id="quiz-complete-emoji">🎊</div>
@@ -730,6 +1050,45 @@ kbd {
       <div class="completion-sub" id="quiz-complete-msg"></div>
       <div class="completion-btns">
         <button class="btn btn-primary btn-full" onclick="startQuiz()">繼續下一個測驗</button>
+        <button class="btn btn-outline btn-full" id="btn-review-wrong" onclick="showQuizReview()" style="display:none">🔎 查看錯題檢討</button>
+        <button class="btn btn-ghost btn-full" onclick="showScreen('level')">返回主頁</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Quiz Review Screen (wrong word list) ===== -->
+  <div id="screen-quiz-review" class="screen">
+    <div class="header">
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('quiz-complete')">← 返回</button>
+      <div class="header-title">🔎 錯題檢討</div>
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('level')">主頁</button>
+    </div>
+    <div style="font-size:0.78rem;color:var(--text-muted);padding:2px 0;flex-shrink:0" id="quiz-review-info"></div>
+    <div class="review-list" id="quiz-review-list">
+      <div class="loading"><div class="spinner"></div> 載入中…</div>
+    </div>
+  </div>
+
+  <!-- ===== Quiz Wrong Word Detail Screen ===== -->
+  <div id="screen-quiz-wrong-detail" class="screen">
+    <div class="header">
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('quiz-review')">← 返回列表</button>
+      <div class="header-title" id="wrong-detail-title">單字詳情</div>
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('level')">主頁</button>
+    </div>
+    <div class="card-wrap" style="align-items:flex-start;overflow-y:auto;padding:8px 0">
+      <div class="detail-static" id="wrong-detail-content"></div>
+    </div>
+  </div>
+
+  <!-- ===== Review Complete Screen ===== -->
+  <div id="screen-review-complete" class="screen">
+    <div class="completion-screen">
+      <div class="completion-emoji">✨</div>
+      <div class="completion-title">檢討練習完成！</div>
+      <div class="completion-sub" id="review-complete-sub"></div>
+      <div class="completion-btns">
+        <button class="btn btn-primary btn-full" onclick="startReviewMode()">再練習一輪</button>
         <button class="btn btn-outline btn-full" onclick="showScreen('level')">返回主頁</button>
       </div>
     </div>
@@ -747,7 +1106,7 @@ kbd {
       <tr><td><kbd>1</kbd></td><td><span style="color:var(--btn-again)">Again</span> — 立刻再複習</td></tr>
       <tr><td><kbd>2</kbd></td><td><span style="color:var(--btn-hard)">Hard</span> — 插入中間位置</td></tr>
       <tr><td><kbd>3</kbd></td><td><span style="color:var(--btn-good)">Good</span> — 移至末尾</td></tr>
-      <tr><td><kbd>4</kbd></td><td><span style="color:var(--btn-easy)">Easy</span> — 標為已學會</td></tr>
+      <tr><td><kbd>4</kbd></td><td><span style="color:var(--btn-easy)">Easy</span> — 標為學會／移除錯誤</td></tr>
       <tr><td><kbd>Y</kbd></td><td>測驗模式：會</td></tr>
       <tr><td><kbd>N</kbd></td><td>測驗模式：不會</td></tr>
     </table>
@@ -755,40 +1114,44 @@ kbd {
   </div>
 </div>
 
-<!-- ===== Toast ===== -->
 <div class="toast" id="toast"></div>
 
 <script>
 // =====================================================================
+// Sakura petals
+// =====================================================================
+(function() {
+  const container = document.getElementById('sakura');
+  const COLORS = ['#ffb7c5','#ff8fa3','#ffc0cb','#ffadb7','#f9a8c9'];
+  for (let i = 0; i < 14; i++) {
+    const p = document.createElement('div');
+    p.className = 'petal';
+    const size = 6 + Math.random() * 8;
+    const left = Math.random() * 100;
+    const dur  = 12 + Math.random() * 16;
+    const delay = -(Math.random() * dur);
+    p.style.cssText = `width:${size}px;height:${size*.9}px;left:${left}%;background:${COLORS[Math.floor(Math.random()*COLORS.length)]};animation-duration:${dur}s;animation-delay:${delay}s;opacity:0;`;
+    container.appendChild(p);
+  }
+})();
+
+// =====================================================================
 // State
 // =====================================================================
 const S = {
-  userId: null,
-  userName: null,
-  token: null,
-  currentLevel: null,
+  userId: null, userName: null, token: null, currentLevel: null,
   allLevels: [],
-
   // Study
-  studyQueue: [],
-  studyTotal: 0,
-  studyStats: { again: 0, hard: 0, good: 0, easy: 0 },
-  studyFlipped: false,
-  studyCurrentWord: null,
-
+  studyQueue: [], studyTotal: 0, studyStats: { again:0, hard:0, good:0, easy:0 },
+  studyFlipped: false, studyCurrentWord: null,
+  reviewMode: false,        // true = 測驗檢討模式 (Easy removes from wrong list)
   // Quiz
-  quizQueue: [],
-  quizTotal: 50,
-  quizYes: 0,
-  quizNo: 0,
-  quizCurrentWord: null,
-
-  // Mastered preview
-  masteredWords: [],
-  masteredDetailWord: null,
+  quizQueue: [], quizTotal: 50, quizYes: 0, quizNo: 0,
+  quizCurrentWord: null, quizWrongWords: [],   // wrong words from current quiz session
+  // Mastered / detail
+  masteredWords: [], masteredDetailWord: null,
 };
-
-const STORAGE_KEY = 'jlpt_session_v1';
+const STORAGE_KEY = 'jlpt_session_v2';
 
 // =====================================================================
 // Utils
@@ -803,14 +1166,12 @@ async function api(method, path, body) {
   }
   return r.json();
 }
-
 function toast(msg, duration = 2000) {
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), duration);
 }
-
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -819,6 +1180,7 @@ function shuffle(arr) {
   }
   return a;
 }
+function fmtNum(n) { return String(n).padStart(3, '0'); }
 
 // =====================================================================
 // Session persistence
@@ -830,13 +1192,12 @@ function saveSession() {
       currentLevel: S.currentLevel,
       studyQueue: S.studyQueue, studyTotal: S.studyTotal,
       studyStats: S.studyStats, studyFlipped: S.studyFlipped,
-      studyCurrentWord: S.studyCurrentWord,
+      studyCurrentWord: S.studyCurrentWord, reviewMode: S.reviewMode,
       quizQueue: S.quizQueue, quizYes: S.quizYes, quizNo: S.quizNo,
-      quizCurrentWord: S.quizCurrentWord,
+      quizCurrentWord: S.quizCurrentWord, quizWrongWords: S.quizWrongWords,
     }));
   } catch (e) {}
 }
-
 function loadSession() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -846,16 +1207,12 @@ function loadSession() {
     return !!S.userId;
   } catch (e) { return false; }
 }
-
-function clearSession() {
-  localStorage.removeItem(STORAGE_KEY);
-}
+function clearSession() { localStorage.removeItem(STORAGE_KEY); }
 
 // =====================================================================
 // Screen management
 // =====================================================================
 let currentScreen = 'login';
-
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById('screen-' + name);
@@ -873,32 +1230,25 @@ async function initLogin() {
   sel.innerHTML = '<option value="">── 選擇 ──</option>';
   users.forEach(u => {
     const opt = document.createElement('option');
-    opt.value = u;
-    opt.textContent = u;
+    opt.value = u; opt.textContent = u;
     sel.appendChild(opt);
   });
   sel.addEventListener('change', () => {
     if (sel.value) document.getElementById('name-input').value = sel.value;
   });
 }
-
 async function login() {
   const name = document.getElementById('name-input').value.trim();
   if (!name) { toast('請輸入名字'); return; }
   try {
     const r = await api('POST', '/api/login', { name });
-    S.userId = r.user_id;
-    S.userName = r.name;
-    S.token = r.token;
+    S.userId = r.user_id; S.userName = r.name; S.token = r.token;
     document.getElementById('header-user').textContent = name;
     await loadLevels();
     showScreen('level');
     saveSession();
-  } catch (e) {
-    toast('登入失敗：' + e.message);
-  }
+  } catch (e) { toast('登入失敗：' + e.message); }
 }
-
 async function logout() {
   await api('POST', '/api/logout').catch(() => {});
   clearSession();
@@ -914,7 +1264,6 @@ async function loadLevels() {
   S.allLevels = await api('GET', '/api/levels');
   renderLevelGrid();
 }
-
 function renderLevelGrid() {
   const grid = document.getElementById('level-grid');
   grid.innerHTML = '';
@@ -928,24 +1277,32 @@ function renderLevelGrid() {
         ? `<div class="level-count">${l.total} 個單字</div>`
         : '<div class="level-na">即將開放</div>'}
     `;
-    if (l.available) {
-      btn.onclick = () => selectLevel(l.level);
-    }
+    if (l.available) btn.onclick = () => selectLevel(l.level);
     grid.appendChild(btn);
   });
 }
-
 async function selectLevel(level) {
   S.currentLevel = level;
   const masteredIds = await getMasteredIds(level);
   const levelInfo = S.allLevels.find(l => l.level === level);
-  const masteredCount = masteredIds.length;
   document.getElementById('mode-level-title').textContent = `${level} 學習`;
   document.getElementById('mastered-mode-desc').textContent =
-    `查看已標記學會的單字列表（${masteredCount} / ${levelInfo?.total || 0}）`;
+    `查看已標記學會的單字列表（${masteredIds.length} / ${levelInfo?.total || 0}）`;
+  // Load wrong word count
+  try {
+    const wrongWords = await api('GET', `/api/quiz/wrong-words/${S.userId}/${level}`);
+    const card = document.getElementById('review-mode-card');
+    if (wrongWords.length === 0) {
+      card.classList.add('disabled');
+      document.getElementById('review-mode-desc').textContent = '尚無錯誤單字記錄，先完成一次測驗吧！';
+    } else {
+      card.classList.remove('disabled');
+      document.getElementById('review-mode-desc').textContent =
+        `從 ${wrongWords.length} 個錯誤單字中隨機練習 20 個，按 Easy 可移除`;
+    }
+  } catch { }
   showScreen('mode');
 }
-
 async function getMasteredIds(level) {
   try {
     const words = await api('GET', `/api/mastered-words/${S.userId}/${level}`);
@@ -954,117 +1311,115 @@ async function getMasteredIds(level) {
 }
 
 // =====================================================================
-// Study Mode
+// Study Mode  (also used for 測驗檢討模式 via S.reviewMode flag)
 // =====================================================================
 async function startStudy() {
   if (!S.currentLevel) return;
+  S.reviewMode = false;
   showScreen('study');
   document.getElementById('study-level-title').textContent = `${S.currentLevel} 學習模式`;
-
+  document.getElementById('study-hint').textContent = '按空白鍵或點擊卡片翻面';
+  document.getElementById('srs-easy-btn').innerHTML = 'Easy<span class="srs-sub">4鍵</span>';
   try {
     const words = await api('GET',
       `/api/words/${S.currentLevel}?user_id=${S.userId}&exclude_mastered=true`);
-    if (!words.length) {
-      toast('🎉 所有單字都已學會！');
-      showScreen('mode');
-      return;
-    }
+    if (!words.length) { toast('🎉 所有單字都已學會！'); showScreen('mode'); return; }
     const batch = shuffle(words).slice(0, 20);
-    S.studyQueue = batch;
-    S.studyTotal = batch.length;
+    S.studyQueue = batch; S.studyTotal = batch.length;
     S.studyStats = { again: 0, hard: 0, good: 0, easy: 0 };
     S.studyFlipped = false;
-    saveSession();
-    renderStudyCard();
-  } catch (e) {
-    toast('載入失敗：' + e.message);
-    showScreen('mode');
-  }
+    saveSession(); renderStudyCard();
+  } catch (e) { toast('載入失敗：' + e.message); showScreen('mode'); }
+}
+
+async function startReviewMode() {
+  if (!S.currentLevel) return;
+  try {
+    const wrongWords = await api('GET', `/api/quiz/wrong-words/${S.userId}/${S.currentLevel}`);
+    if (!wrongWords.length) { toast('沒有錯誤單字記錄'); showScreen('mode'); return; }
+    S.reviewMode = true;
+    showScreen('study');
+    document.getElementById('study-level-title').textContent = `${S.currentLevel} 檢討模式`;
+    document.getElementById('study-hint').textContent = '點擊翻面，Easy 可移除錯誤記錄';
+    document.getElementById('srs-easy-btn').innerHTML = 'Easy<span class="srs-sub">移除</span>';
+    const batch = shuffle(wrongWords).slice(0, 20);
+    S.studyQueue = batch; S.studyTotal = batch.length;
+    S.studyStats = { again: 0, hard: 0, good: 0, easy: 0 };
+    S.studyFlipped = false;
+    saveSession(); renderStudyCard();
+  } catch (e) { toast('載入失敗：' + e.message); showScreen('mode'); }
 }
 
 function renderStudyCard() {
-  if (!S.studyQueue.length) {
-    completeStudy();
-    return;
-  }
+  if (!S.studyQueue.length) { completeStudy(); return; }
   const word = S.studyQueue[0];
-  S.studyCurrentWord = word;
-  S.studyFlipped = false;
-
-  // Front
+  S.studyCurrentWord = word; S.studyFlipped = false;
+  document.getElementById('study-word-num').textContent = `#${fmtNum(word.id)}`;
   document.getElementById('study-word').textContent = word.word;
-  // Back
   document.getElementById('back-word').textContent = word.word;
-  document.getElementById('back-reading').textContent = `(${word.reading})`;
+  document.getElementById('back-reading').textContent = `(${word.reading || ''})`;
   document.getElementById('back-pos').textContent = word.pos || '';
   document.getElementById('back-zh').textContent = word.zh || '';
   document.getElementById('back-example').textContent = word.example || '';
   document.getElementById('back-example-zh').textContent = word.example_zh || '';
-
-  // Reset flip
-  const cardInner = document.getElementById('study-card-inner');
-  cardInner.classList.remove('flipped');
+  document.getElementById('study-card-inner').classList.remove('flipped');
   document.getElementById('srs-btns').style.display = 'none';
   document.getElementById('flip-hint').style.display = '';
-
-  updateStudyProgress();
-  saveSession();
+  updateStudyProgress(); saveSession();
 }
-
 function updateStudyProgress() {
-  const remaining = S.studyQueue.length;
-  const total = S.studyTotal;
-  const done = total - remaining;
-  const pct = total ? (done / total * 100) : 0;
+  const remaining = S.studyQueue.length, total = S.studyTotal;
+  const pct = total ? ((total - remaining) / total * 100) : 0;
   document.getElementById('study-progress-fill').style.width = pct + '%';
   document.getElementById('study-progress-text').textContent = `剩餘 ${remaining} / ${total}`;
   document.getElementById('stat-again').textContent = `再:${S.studyStats.again}`;
-  document.getElementById('stat-hard').textContent = `難:${S.studyStats.hard}`;
-  document.getElementById('stat-good').textContent = `好:${S.studyStats.good}`;
-  document.getElementById('stat-easy').textContent = `易:${S.studyStats.easy}`;
+  document.getElementById('stat-hard').textContent  = `難:${S.studyStats.hard}`;
+  document.getElementById('stat-good').textContent  = `好:${S.studyStats.good}`;
+  document.getElementById('stat-easy').textContent  = `易:${S.studyStats.easy}`;
 }
-
 function flipCard() {
   if (currentScreen !== 'study') return;
   S.studyFlipped = !S.studyFlipped;
-  const cardInner = document.getElementById('study-card-inner');
-  cardInner.classList.toggle('flipped', S.studyFlipped);
+  document.getElementById('study-card-inner').classList.toggle('flipped', S.studyFlipped);
   document.getElementById('srs-btns').style.display = S.studyFlipped ? '' : 'none';
   document.getElementById('flip-hint').style.display = S.studyFlipped ? 'none' : '';
   saveSession();
 }
-
 function srsAction(action) {
   if (currentScreen !== 'study' || !S.studyCurrentWord) return;
   const word = S.studyQueue.shift();
   S.studyStats[action]++;
-
   if (action === 'again') {
     S.studyQueue.splice(1, 0, word);
   } else if (action === 'hard') {
-    const mid = Math.max(1, Math.floor(S.studyQueue.length / 2));
-    S.studyQueue.splice(mid, 0, word);
+    S.studyQueue.splice(Math.max(1, Math.floor(S.studyQueue.length / 2)), 0, word);
   } else if (action === 'good') {
     S.studyQueue.push(word);
   } else if (action === 'easy') {
-    // Mark as mastered
-    api('POST', '/api/mastered', {
-      user_id: S.userId, level: S.currentLevel, word_id: word.id
-    }).catch(() => {});
-    toast(`✅ 「${word.word}」已加入已學會列表`);
+    if (S.reviewMode) {
+      api('DELETE', `/api/quiz/wrong-words/${S.userId}/${S.currentLevel}/${word.id}`).catch(() => {});
+      toast(`✓ 「${word.word}」已從錯誤列表移除`);
+    } else {
+      api('POST', '/api/mastered', { user_id: S.userId, level: S.currentLevel, word_id: word.id }).catch(() => {});
+      toast(`⭐ 「${word.word}」已加入已學會列表`);
+    }
   }
-
   renderStudyCard();
 }
-
 async function completeStudy() {
-  await api('POST', '/api/study/complete', {
-    user_id: S.userId, level: S.currentLevel
-  }).catch(() => {});
-
-  const totalEasy = S.studyStats.easy;
+  if (S.reviewMode) {
+    S.reviewMode = false;
+    document.getElementById('review-complete-sub').textContent =
+      `本次共複習 ${S.studyTotal} 個錯誤單字，其中 ${S.studyStats.easy} 個已移除錯誤記錄`;
+    showScreen('review-complete');
+    return;
+  }
+  await api('POST', '/api/study/complete', { user_id: S.userId, level: S.currentLevel }).catch(() => {});
+  document.getElementById('study-complete-title').textContent = '恭喜完成本次學習！';
+  document.getElementById('study-continue-btn').textContent = '繼續下一個練習';
+  document.getElementById('study-continue-btn').onclick = startStudy;
   document.getElementById('study-complete-sub').textContent =
-    `本次共學習 ${S.studyTotal} 個單字，其中 ${totalEasy} 個標為已學會`;
+    `本次共學習 ${S.studyTotal} 個單字，其中 ${S.studyStats.easy} 個標為已學會`;
   showScreen('study-complete');
 }
 
@@ -1075,88 +1430,121 @@ async function startQuiz() {
   if (!S.currentLevel) return;
   showScreen('quiz');
   document.getElementById('quiz-level-title').textContent = `${S.currentLevel} 測驗模式`;
-
   try {
     const words = await api('GET', `/api/words/${S.currentLevel}`);
     if (!words.length) { toast('尚無單字資料'); showScreen('mode'); return; }
     const batch = shuffle(words).slice(0, 50);
-    S.quizQueue = batch;
-    S.quizTotal = batch.length;
-    S.quizYes = 0;
-    S.quizNo = 0;
-    saveSession();
-    renderQuizCard();
-  } catch (e) {
-    toast('載入失敗：' + e.message);
-    showScreen('mode');
-  }
+    S.quizQueue = batch; S.quizTotal = batch.length;
+    S.quizYes = 0; S.quizNo = 0; S.quizWrongWords = [];
+    saveSession(); renderQuizCard();
+  } catch (e) { toast('載入失敗：' + e.message); showScreen('mode'); }
 }
-
 function renderQuizCard() {
-  if (!S.quizQueue.length) {
-    completeQuiz();
-    return;
-  }
+  if (!S.quizQueue.length) { completeQuiz(); return; }
   const word = S.quizQueue[0];
   S.quizCurrentWord = word;
+  document.getElementById('quiz-word-num').textContent = `#${fmtNum(word.id)}`;
   document.getElementById('quiz-word').textContent = word.word;
-  updateQuizProgress();
-  saveSession();
+  updateQuizProgress(); saveSession();
 }
-
 function updateQuizProgress() {
-  const remaining = S.quizQueue.length;
-  const total = S.quizTotal;
-  const done = total - remaining;
-  const pct = total ? (done / total * 100) : 0;
+  const remaining = S.quizQueue.length, total = S.quizTotal;
+  const pct = total ? ((total - remaining) / total * 100) : 0;
   document.getElementById('quiz-progress-fill').style.width = pct + '%';
   document.getElementById('quiz-progress-text').textContent = `剩餘 ${remaining} / ${total}`;
   document.getElementById('quiz-yes-count').textContent = S.quizYes;
   document.getElementById('quiz-no-count').textContent = S.quizNo;
 }
-
 function quizAction(knows) {
   if (currentScreen !== 'quiz' || !S.quizCurrentWord) return;
-  S.quizQueue.shift();
-  if (knows) S.quizYes++; else S.quizNo++;
+  const word = S.quizQueue.shift();
+  if (knows) {
+    S.quizYes++;
+  } else {
+    S.quizNo++;
+    S.quizWrongWords.push(word);
+  }
   renderQuizCard();
 }
-
 async function completeQuiz() {
   const score = Math.round((S.quizYes / S.quizTotal) * 100);
+  const wrongIds = S.quizWrongWords.map(w => w.id);
   await api('POST', '/api/quiz/complete', {
-    user_id: S.userId, level: S.currentLevel, score
+    user_id: S.userId, level: S.currentLevel, score, wrong_word_ids: wrongIds,
   }).catch(() => {});
 
   let emoji, msg;
-  if (score === 100) { emoji = '🏆'; msg = '完美滿分！你真的太厲害了！'; }
-  else if (score >= 80) { emoji = '🌟'; msg = '非常優秀！繼續保持！'; }
-  else if (score >= 60) { emoji = '👍'; msg = '不錯唷！繼續加油，你快到了！'; }
-  else { emoji = '💪'; msg = '沒關係，多練習幾次一定會進步的！'; }
+  if (score === 100)      { emoji = '🏆'; msg = '完美滿分！真正的單字王！'; }
+  else if (score >= 80)   { emoji = '🌟'; msg = '非常優秀！繼續保持！'; }
+  else if (score >= 60)   { emoji = '👍'; msg = '不錯唷！繼續加油，你快到了！'; }
+  else                    { emoji = '💪'; msg = '沒關係，多練習一定會進步的！'; }
 
   document.getElementById('quiz-complete-emoji').textContent = emoji;
   document.getElementById('quiz-complete-score').textContent = `${score} 分`;
-  document.getElementById('quiz-complete-msg').textContent = `答對 ${S.quizYes} / ${S.quizTotal} 題。${msg}`;
+  document.getElementById('quiz-complete-msg').textContent =
+    `答對 ${S.quizYes} / ${S.quizTotal} 題。${msg}`;
+
+  const reviewBtn = document.getElementById('btn-review-wrong');
+  reviewBtn.style.display = S.quizWrongWords.length ? '' : 'none';
+
   showScreen('quiz-complete');
+}
+
+// =====================================================================
+// Quiz Review (wrong word list from current quiz)
+// =====================================================================
+function showQuizReview() {
+  showScreen('quiz-review');
+  const listEl = document.getElementById('quiz-review-list');
+  const infoEl = document.getElementById('quiz-review-info');
+  infoEl.textContent = `本次共答錯 ${S.quizWrongWords.length} 個單字`;
+  listEl.innerHTML = '';
+  if (!S.quizWrongWords.length) {
+    listEl.innerHTML = '<div class="empty-state">本次測驗沒有答錯的單字！</div>';
+    return;
+  }
+  S.quizWrongWords.forEach(w => {
+    const item = document.createElement('div');
+    item.className = 'review-item';
+    item.innerHTML = `
+      <div>
+        <div class="review-item-word">${w.word}</div>
+        <div class="review-item-zh">${w.zh || ''}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="review-item-num">#${fmtNum(w.id)}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted)">${w.reading || ''}</div>
+      </div>
+    `;
+    item.onclick = () => showQuizWrongDetail(w);
+    listEl.appendChild(item);
+  });
+}
+
+function showQuizWrongDetail(word) {
+  document.getElementById('wrong-detail-title').textContent = word.word;
+  document.getElementById('wrong-detail-content').innerHTML = `
+    <div class="word-num-badge" style="position:static;display:inline-block;margin-bottom:8px">#${fmtNum(word.id)}</div>
+    <div class="detail-word-main">${word.word}</div>
+    <div style="text-align:center;font-size:0.95rem;color:var(--text-muted);margin-bottom:4px">${word.reading || ''}</div>
+    <div class="detail-divider"></div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      <span class="back-pos">${word.pos || ''}</span>
+      <button class="btn-speaker" onclick="playWordAudio('${S.currentLevel}', ${word.id})">🔊</button>
+    </div>
+    <div class="back-zh" style="margin-bottom:8px">${word.zh || ''}</div>
+    <div class="back-example">${word.example || ''}</div>
+    <div class="back-example-zh" style="margin-top:4px">${word.example_zh || ''}</div>
+  `;
+  showScreen('quiz-wrong-detail');
 }
 
 // =====================================================================
 // Audio
 // =====================================================================
 let currentAudio = null;
-
-function playAudio() {
-  const word = S.studyCurrentWord;
-  if (!word) return;
-  playWordAudio(S.currentLevel, word.id);
-}
-
-function playQuizAudio() {
-  const word = S.quizCurrentWord;
-  if (!word) return;
-  playWordAudio(S.currentLevel, word.id);
-}
-
+function playAudio() { const w = S.studyCurrentWord; if (w) playWordAudio(S.currentLevel, w.id); }
+function playQuizAudio() { const w = S.quizCurrentWord; if (w) playWordAudio(S.currentLevel, w.id); }
 function playWordAudio(level, wordId) {
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   const audio = new Audio(`/api/audio/${level}/${wordId}`);
@@ -1174,9 +1562,8 @@ async function showProgress() {
   try {
     const progress = await api('GET', `/api/progress/${S.userId}`);
     content.innerHTML = '';
-    ['N4', 'N3', 'N2', 'N1'].forEach(level => {
-      const p = progress[level];
-      if (!p) return;
+    ['N4','N3','N2','N1'].forEach(level => {
+      const p = progress[level]; if (!p) return;
       const pct = p.total ? Math.round(p.mastered / p.total * 100) : 0;
       const card = document.createElement('div');
       card.className = 'progress-card';
@@ -1188,6 +1575,7 @@ async function showProgress() {
         ${p.available ? `
           <div class="progress-row"><span>已學會單字</span><strong>${p.mastered} / ${p.total}</strong></div>
           <div class="progress-bar-bg" style="margin:4px 0 8px"><div class="progress-bar-fill" style="width:${pct}%;background:var(--success)"></div></div>
+          <div class="progress-row"><span>❌ 錯誤單字庫</span><strong>${p.wrong_count || 0} 個</strong></div>
           <div class="progress-row"><span>🔖 練習次數</span><strong>${p.study.count} 次</strong></div>
           <div class="progress-row"><span>最近練習</span><strong>${p.study.last_at ? fmtDate(p.study.last_at) : '尚未練習'}</strong></div>
           <div class="progress-row"><span>📝 測驗次數</span><strong>${p.quiz.count} 次</strong></div>
@@ -1197,41 +1585,36 @@ async function showProgress() {
             <button class="btn btn-ghost btn-sm" onclick="resetMastered('${level}')">重置已學會</button>
             <button class="btn btn-ghost btn-sm" onclick="resetStudy('${level}')">重置練習記錄</button>
             <button class="btn btn-ghost btn-sm" onclick="resetQuiz('${level}')">重置測驗記錄</button>
+            <button class="btn btn-ghost btn-sm" onclick="resetWrongWords('${level}')">重置錯誤單字</button>
           </div>
         ` : ''}
       `;
       content.appendChild(card);
     });
-  } catch (e) {
-    content.innerHTML = `<div class="empty-state">載入失敗：${e.message}</div>`;
-  }
+  } catch (e) { content.innerHTML = `<div class="empty-state">載入失敗：${e.message}</div>`; }
 }
-
 function fmtDate(iso) {
   if (!iso) return '';
   try {
-    const d = new Date(iso.replace(' ', 'T') + 'Z');
-    return d.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const d = new Date(iso.replace(' ','T') + 'Z');
+    return d.toLocaleString('zh-TW', { timeZone:'Asia/Taipei', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
   } catch { return iso; }
 }
-
 async function resetMastered(level) {
   if (!confirm(`確定要重置 ${level} 的所有已學會單字嗎？`)) return;
-  await api('DELETE', `/api/mastered/${S.userId}/${level}`);
-  toast('已重置');
-  showProgress();
+  await api('DELETE', `/api/mastered/${S.userId}/${level}`); toast('已重置'); showProgress();
 }
 async function resetStudy(level) {
   if (!confirm(`確定要重置 ${level} 的練習記錄嗎？`)) return;
-  await api('DELETE', `/api/study/reset/${S.userId}/${level}`);
-  toast('已重置');
-  showProgress();
+  await api('DELETE', `/api/study/reset/${S.userId}/${level}`); toast('已重置'); showProgress();
 }
 async function resetQuiz(level) {
   if (!confirm(`確定要重置 ${level} 的測驗記錄嗎？`)) return;
-  await api('DELETE', `/api/quiz/reset/${S.userId}/${level}`);
-  toast('已重置');
-  showProgress();
+  await api('DELETE', `/api/quiz/reset/${S.userId}/${level}`); toast('已重置'); showProgress();
+}
+async function resetWrongWords(level) {
+  if (!confirm(`確定要清除 ${level} 所有錯誤單字記錄嗎？`)) return;
+  await api('DELETE', `/api/quiz/wrong-words/${S.userId}/${level}`); toast('已重置'); showProgress();
 }
 
 // =====================================================================
@@ -1243,20 +1626,12 @@ async function showMastered() {
   const ctrlEl = document.getElementById('mastered-controls');
   listEl.innerHTML = '<div class="loading"><div class="spinner"></div> 載入中…</div>';
   ctrlEl.innerHTML = '';
-
   try {
     const words = await api('GET', `/api/mastered-words/${S.userId}/${S.currentLevel}`);
     S.masteredWords = words;
-    ctrlEl.innerHTML = `
-      <span style="font-size:0.85rem;color:var(--text-muted);padding:4px 0">
-        ${S.currentLevel} 已學會：${words.length} 個
-      </span>
-    `;
+    ctrlEl.innerHTML = `<span style="font-size:0.82rem;color:var(--text-muted);padding:4px 0">${S.currentLevel} 已學會：${words.length} 個</span>`;
     listEl.innerHTML = '';
-    if (!words.length) {
-      listEl.innerHTML = '<div class="empty-state">還沒有已學會的單字<br>在學習模式點擊 Easy 即可加入</div>';
-      return;
-    }
+    if (!words.length) { listEl.innerHTML = '<div class="empty-state">還沒有已學會的單字<br>在學習模式點擊 Easy 即可加入</div>'; return; }
     words.forEach(w => {
       const item = document.createElement('div');
       item.className = 'mastered-item';
@@ -1265,21 +1640,20 @@ async function showMastered() {
           <div class="mastered-word">${w.word}</div>
           <div class="mastered-zh">${w.zh || ''}</div>
         </div>
-        <div style="color:var(--text-muted);font-size:0.8rem">${w.reading || ''}</div>
+        <div style="text-align:right">
+          <div style="color:var(--text-muted);font-size:0.8rem">${w.reading || ''}</div>
+          <div style="font-size:0.7rem;color:var(--primary-dark)">#${fmtNum(w.id)}</div>
+        </div>
       `;
       item.onclick = () => showWordDetail(w);
       listEl.appendChild(item);
     });
-  } catch (e) {
-    listEl.innerHTML = `<div class="empty-state">載入失敗：${e.message}</div>`;
-  }
+  } catch (e) { listEl.innerHTML = `<div class="empty-state">載入失敗：${e.message}</div>`; }
 }
-
 function showWordDetail(word) {
   S.masteredDetailWord = word;
   document.getElementById('detail-title').textContent = word.word;
-  const content = document.getElementById('detail-content');
-  content.innerHTML = `
+  document.getElementById('detail-content').innerHTML = `
     <div class="back-word-row">
       <span class="back-word">${word.word}</span>
       <span class="back-reading">(${word.reading || ''})</span>
@@ -1295,33 +1669,22 @@ function showWordDetail(word) {
 }
 
 // =====================================================================
-// Quit confirmation
+// Quit / Modal / Keyboard
 // =====================================================================
 function confirmQuit(mode) {
   if (confirm('確定要結束本次' + (mode === 'study' ? '學習' : '測驗') + '嗎？')) {
+    S.reviewMode = false;
     showScreen('mode');
   }
 }
-
-// =====================================================================
-// Modal
-// =====================================================================
-function showModal() {
-  document.getElementById('info-modal').classList.add('open');
-}
+function showModal() { document.getElementById('info-modal').classList.add('open'); }
 function closeModal(e) {
-  if (!e || e.target === document.getElementById('info-modal')) {
+  if (!e || e.target === document.getElementById('info-modal'))
     document.getElementById('info-modal').classList.remove('open');
-  }
 }
-
-// =====================================================================
-// Keyboard shortcuts
-// =====================================================================
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   const key = e.key.toLowerCase();
-
   if (currentScreen === 'study') {
     if (key === ' ') { e.preventDefault(); flipCard(); }
     else if (key === 'enter') { e.preventDefault(); playAudio(); }
@@ -1341,24 +1704,22 @@ document.addEventListener('keydown', e => {
 // =====================================================================
 async function boot() {
   const restored = loadSession();
-
   await initLogin();
-
   if (restored && S.userId) {
     document.getElementById('header-user').textContent = S.userName;
     document.getElementById('name-input').value = S.userName;
-
-    // Re-login to refresh server session (cookie may have expired)
     try {
       const r = await api('POST', '/api/login', { name: S.userName });
-      S.userId = r.user_id;
-      S.token = r.token;
+      S.userId = r.user_id; S.token = r.token;
       await loadLevels();
-
-      // Resume interrupted session
       if (currentScreen === 'study' && S.studyQueue?.length) {
         showScreen('study');
-        document.getElementById('study-level-title').textContent = `${S.currentLevel} 學習模式`;
+        document.getElementById('study-level-title').textContent =
+          S.reviewMode ? `${S.currentLevel} 檢討模式` : `${S.currentLevel} 學習模式`;
+        if (S.reviewMode) {
+          document.getElementById('study-hint').textContent = '點擊翻面，Easy 可移除錯誤記錄';
+          document.getElementById('srs-easy-btn').innerHTML = 'Easy<span class="srs-sub">移除</span>';
+        }
         renderStudyCard();
         if (S.studyFlipped) flipCard();
       } else if (currentScreen === 'quiz' && S.quizQueue?.length) {
@@ -1368,21 +1729,14 @@ async function boot() {
       } else {
         showScreen('level');
       }
-    } catch {
-      showScreen('login');
-    }
+    } catch { showScreen('login'); }
   } else {
     showScreen('login');
   }
-
-  // Wire up login button
   document.getElementById('btn-login').onclick = login;
-  document.getElementById('name-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') login();
-  });
+  document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 }
 
-// Patch showScreen to handle async screens
 const _showScreen = showScreen;
 window.showScreen = function(name) {
   _showScreen(name);
