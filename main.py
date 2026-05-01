@@ -1,7 +1,11 @@
+import os
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Optional
+
+PRODUCTION = os.getenv("PRODUCTION", "false").lower() == "true"
+PORT = int(os.getenv("PORT", "8000"))
 
 from fastapi import Cookie, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
@@ -100,6 +104,7 @@ async def login(req: LoginRequest, response: Response):
         value=token,
         httponly=True,
         samesite="strict",
+        secure=PRODUCTION,
         max_age=86400 * 7,
     )
     return {"user_id": user_id, "name": name, "token": token}
@@ -283,4 +288,10 @@ async def reset_quiz(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=PORT,
+        reload=not PRODUCTION,
+        workers=1,
+    )

@@ -1,0 +1,29 @@
+[Unit]
+Description=JLPT 單字王 FastAPI App
+After=network.target
+
+[Service]
+Type=simple
+User=jlpt
+Group=jlpt
+WorkingDirectory=APP_DIR_PLACEHOLDER
+ExecStart=APP_DIR_PLACEHOLDER/.venv/bin/python main.py
+Restart=on-failure
+RestartSec=5
+
+# 環境變數
+Environment="PRODUCTION=true"
+Environment="PORT=8000"
+
+# 安全性限制
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=APP_DIR_PLACEHOLDER/data
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jlpt
+
+[Install]
+WantedBy=multi-user.target
