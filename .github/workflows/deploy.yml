@@ -5,6 +5,9 @@ on:
     branches: [ master ]
   workflow_dispatch:      # 允許手動觸發
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   deploy:
     name: SSH Deploy
@@ -24,5 +27,5 @@ jobs:
           script: |
             set -euo pipefail
             echo "=== 開始部署 $(date) ==="
-            bash /var/www/jlpt-word-bank/deploy/deploy.sh
+            bash ~/jlpt-word-bank/deploy/deploy.sh
             echo "=== 部署完成 ==="
