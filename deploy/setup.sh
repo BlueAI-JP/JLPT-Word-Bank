@@ -1,47 +1,55 @@
 #!/bin/bash
 # =============================================================================
 # JLPT 單字王 — VPS 一次性初始化腳本
-# 在全新的 Ubuntu 22.04 / 24.04 VPS 上以 root 執行一次
-# 用法: bash setup.sh <your-domain.com>
+# Ubuntu 22.04 / 24.04，以具有 sudo 權限的使用者執行
+# 用法: sudo bash setup.sh <網域名稱>
+# 範例: sudo bash setup.sh vividuck.com
 # =============================================================================
 set -euo pipefail
 
-DOMAIN="${1:?請傳入網域名稱，例如: bash setup.sh jlpt.example.com}"
-APP_DIR="/var/www/jlpt-word-bank"
-APP_USER="jlpt"
+DOMAIN="${1:?請傳入網域名稱，例如: sudo bash setup.sh vividuck.com}"
+APP_USER="${SUDO_USER:-blue}"          # 以 sudo 執行時自動抓登入使用者名稱
+APP_DIR="/home/$APP_USER/jlpt-word-bank"
 REPO="https://github.com/BlueAI-JP/JLPT-Word-Bank.git"
+
+echo ">>> 設定資訊"
+echo "    使用者: $APP_USER"
+echo "    目錄:   $APP_DIR"
+echo "    網域:   $DOMAIN"
+echo ""
 
 echo ">>> [1/8] 更新系統套件"
 apt-get update -y && apt-get upgrade -y
 
 echo ">>> [2/8] 安裝必要套件"
-apt-get install -y python3.11 python3.11-venv python3-pip \
+apt-get install -y python3-venv python3-pip \
     nginx certbot python3-certbot-nginx git curl ufw
 
-echo ">>> [3/8] 建立應用程式使用者"
-id -u "$APP_USER" &>/dev/null || useradd -m -s /bin/bash "$APP_USER"
-
-echo ">>> [4/8] Clone 程式碼"
-mkdir -p "$APP_DIR"
+echo ">>> [3/8] Clone 程式碼"
 if [ -d "$APP_DIR/.git" ]; then
     echo "    已有 git repo，略過 clone"
 else
-    git clone "$REPO" "$APP_DIR"
+    sudo -u "$APP_USER" git clone "$REPO" "$APP_DIR"
 fi
-chown -R "$APP_USER":"$APP_USER" "$APP_DIR"
 
-echo ">>> [5/8] 建立 Python 虛擬環境與安裝依賴"
-sudo -u "$APP_USER" python3.11 -m venv "$APP_DIR/.venv"
-sudo -u "$APP_USER" "$APP_DIR/.venv/bin/pip" install --upgrade pip
+echo ">>> [4/8] 建立 Python 虛擬環境與安裝依賴"
+sudo -u "$APP_USER" python3 -m venv "$APP_DIR/.venv"
+sudo -u "$APP_USER" "$APP_DIR/.venv/bin/pip" install --upgrade pip --quiet
 sudo -u "$APP_USER" "$APP_DIR/.venv/bin/pip" install \
-    fastapi[standard] openpyxl aiosqlite uvicorn
+    "fastapi[standard]" openpyxl aiosqlite uvicorn --quiet
+echo "    依賴安裝完成"
+
+echo ">>> [5/8] 建立資料目錄"
+sudo -u "$APP_USER" mkdir -p "$APP_DIR/data"
 
 echo ">>> [6/8] 安裝 systemd 服務"
 cp "$APP_DIR/deploy/jlpt.service" /etc/systemd/system/jlpt.service
-sed -i "s|APP_DIR_PLACEHOLDER|$APP_DIR|g" /etc/systemd/system/jlpt.service
+sed -i "s|APP_DIR_PLACEHOLDER|$APP_DIR|g"   /etc/systemd/system/jlpt.service
+sed -i "s|APP_USER_PLACEHOLDER|$APP_USER|g" /etc/systemd/system/jlpt.service
 systemctl daemon-reload
 systemctl enable jlpt
 systemctl start jlpt
+sleep 2
 echo "    服務狀態: $(systemctl is-active jlpt)"
 
 echo ">>> [7/8] 設定 Nginx"
@@ -57,17 +65,22 @@ certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos \
 systemctl reload nginx
 
 echo ">>> 設定防火牆"
-ufw allow 22/tcp
-ufw allow 80/tcp
-ufw allow 443/tcp
+ufw allow OpenSSH
+ufw allow 'Nginx Full'
 ufw --force enable
+
+# 允許 APP_USER 免密碼重啟服務（給 CI/CD 用）
+echo "$APP_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart jlpt, /bin/systemctl status jlpt" \
+    > /etc/sudoers.d/jlpt-deploy
+chmod 440 /etc/sudoers.d/jlpt-deploy
+echo "    已設定免密碼 sudo 重啟服務"
 
 echo ""
 echo "======================================================"
 echo " 初始化完成！"
 echo " 網址: https://$DOMAIN"
 echo ""
-echo " 下一步：上傳音檔資料"
-echo "   rsync -avz --progress ./JLPT_N4/ $APP_USER@$DOMAIN:$APP_DIR/JLPT_N4/"
-echo "   rsync -avz --progress ./JLPT_N3/ $APP_USER@$DOMAIN:$APP_DIR/JLPT_N3/"
+echo " 下一步：用 WinSCP 上傳音檔"
+echo "   本機 JLPT_N4/ → 遠端 $APP_DIR/JLPT_N4/"
+echo "   本機 JLPT_N3/ → 遠端 $APP_DIR/JLPT_N3/"
 echo "======================================================"

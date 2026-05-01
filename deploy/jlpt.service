@@ -4,18 +4,16 @@ After=network.target
 
 [Service]
 Type=simple
-User=jlpt
-Group=jlpt
+User=APP_USER_PLACEHOLDER
+Group=APP_USER_PLACEHOLDER
 WorkingDirectory=APP_DIR_PLACEHOLDER
 ExecStart=APP_DIR_PLACEHOLDER/.venv/bin/python main.py
 Restart=on-failure
 RestartSec=5
 
-# 環境變數
 Environment="PRODUCTION=true"
 Environment="PORT=8000"
 
-# 安全性限制
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
