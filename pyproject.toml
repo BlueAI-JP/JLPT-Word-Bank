@@ -1,0 +1,17 @@
+[project]
+name = "jlpt-word-bank"
+version = "0.1.0"
+description = "JLPT Word Bank - Japanese Vocabulary Learning App"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+    "openpyxl>=3.1.0",
+    "aiosqlite>=0.20.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = []

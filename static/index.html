@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>JLPT 單字王</title>
+<style>
+/* ===================== CSS Reset & Variables ===================== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --primary: #4f46e5;
+  --primary-dark: #3730a3;
+  --primary-light: #e0e7ff;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --success: #10b981;
+  --info: #3b82f6;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --shadow: 0 4px 20px rgba(0,0,0,0.08);
+  --radius: 16px;
+  --btn-again: #ef4444;
+  --btn-hard: #f97316;
+  --btn-good: #10b981;
+  --btn-easy: #3b82f6;
+  --font: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', sans-serif;
+}
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ===================== Layout ===================== */
+#app {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 600px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 12px;
+  height: 100dvh;
+  overflow: hidden;
+}
+.screen { display: none; flex-direction: column; height: 100%; gap: 10px; padding: 12px 0; }
+.screen.active { display: flex; }
+
+/* ===================== Header ===================== */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.header-title { font-size: 1.1rem; font-weight: 700; color: var(--primary); flex: 1; }
+.header-user { font-size: 0.8rem; color: var(--text-muted); }
+
+/* ===================== Buttons ===================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  font-family: var(--font);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { transform: scale(0.96); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+.btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+.btn-outline:hover { background: var(--primary-light); }
+.btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-full { width: 100%; }
+.btn-sm { padding: 6px 12px; font-size: 0.82rem; border-radius: 7px; }
+
+/* ===================== Card ===================== */
+.card-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1000px;
+  min-height: 0;
+}
+.card-inner {
+  width: 100%;
+  max-width: 520px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.45s cubic-bezier(.4,0,.2,1);
+}
+.card-inner.flipped { transform: rotateY(180deg); }
+.card-face {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.card-back-face {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  overflow-y: auto;
+  max-height: calc(100dvh - 200px);
+}
+
+/* Card Front */
+.card-front-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  gap: 8px;
+}
+.word-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.word-main {
+  font-size: clamp(2rem, 8vw, 3.5rem);
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.word-hint { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+
+/* Card Back */
+.card-back-content { display: flex; flex-direction: column; gap: 8px; }
+.back-word-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.back-word { font-size: 1.5rem; font-weight: 700; }
+.back-reading { font-size: 1rem; color: var(--text-muted); }
+.back-pos {
+  font-size: 0.78rem;
+  background: var(--primary-light);
+  color: var(--primary);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+.back-zh {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  border-left: 3px solid var(--primary);
+  padding-left: 10px;
+}
+.back-example {
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.5;
+  background: var(--bg);
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+.back-example-zh {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  padding: 0 4px;
+}
+.divider { height: 1px; background: var(--border); margin: 2px 0; }
+
+/* Speaker button */
+.btn-speaker {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--primary);
+  font-size: 1.2rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-speaker:hover { background: var(--primary-light); }
+
+/* ===================== SRS Buttons ===================== */
+.srs-btns {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  flex-shrink: 0;
+}
+.srs-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 4px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: #fff;
+  transition: opacity 0.15s, transform 0.1s;
+  font-family: var(--font);
+  -webkit-tap-highlight-color: transparent;
+}
+.srs-btn:active { transform: scale(0.94); }
+.srs-again { background: var(--btn-again); }
+.srs-hard  { background: var(--btn-hard); }
+.srs-good  { background: var(--btn-good); }
+.srs-easy  { background: var(--btn-easy); }
+.srs-sub   { font-size: 0.7rem; font-weight: 400; opacity: 0.9; display: block; margin-top: 2px; }
+
+/* ===================== Quiz Buttons ===================== */
+.quiz-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.quiz-yes { background: var(--success); color: #fff; font-size: 1rem; }
+.quiz-no  { background: var(--danger); color: #fff; font-size: 1rem; }
+
+/* ===================== Progress Bar ===================== */
+.progress-area { flex-shrink: 0; }
+.progress-bar-bg {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--btn-easy));
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.progress-stats span { margin-left: 8px; }
+.stat-again { color: var(--btn-again); font-weight: 600; }
+.stat-hard  { color: var(--btn-hard); font-weight: 600; }
+.stat-good  { color: var(--btn-good); font-weight: 600; }
+.stat-easy  { color: var(--btn-easy); font-weight: 600; }
+
+/* ===================== Login Screen ===================== */
+.login-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+.login-logo { font-size: 3rem; }
+.login-title { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
+.login-sub { font-size: 0.9rem; color: var(--text-muted); }
+.input-group { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.input-label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-align: left; }
+.input-field {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  font-size: 1rem;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.input-field:focus { border-color: var(--primary); }
+select.input-field { cursor: pointer; }
+
+/* ===================== Level Select ===================== */
+.level-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.level-btn {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.2s, transform 0.1s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.level-btn:not(:disabled):hover { border-color: var(--primary); background: var(--primary-light); }
+.level-btn:not(:disabled):active { transform: scale(0.97); }
+.level-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.level-name { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
+.level-count { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+.level-na { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+
+/* ===================== Mode Select ===================== */
+.mode-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+.mode-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.mode-card:hover { border-color: var(--primary); background: var(--primary-light); }
+.mode-card:active { transform: scale(0.98); }
+.mode-icon { font-size: 2rem; margin-bottom: 6px; }
+.mode-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+.mode-desc { font-size: 0.82rem; color: var(--text-muted); }
+
+/* ===================== Progress Screen ===================== */
+.progress-screen-content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.progress-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+.progress-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.progress-level-tag {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+.progress-row { display: flex; justify-content: space-between; font-size: 0.83rem; margin: 3px 0; }
+.progress-row strong { color: var(--text); }
+.progress-row span { color: var(--text-muted); }
+.progress-percent {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--success);
+}
+.reset-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+/* ===================== Mastered List ===================== */
+.mastered-controls {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.mastered-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.mastered-item {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  border: 1px solid var(--border);
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mastered-item:hover { border-color: var(--primary); background: var(--primary-light); }
+.mastered-word { font-size: 1.1rem; font-weight: 700; }
+.mastered-zh { font-size: 0.82rem; color: var(--text-muted); }
+.mastered-count { font-size: 0.8rem; color: var(--text-muted); text-align: right; }
+
+/* ===================== Completion Screen ===================== */
+.completion-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  padding: 20px;
+}
+.completion-emoji { font-size: 3.5rem; }
+.completion-title { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
+.completion-score { font-size: 2.5rem; font-weight: 800; }
+.completion-sub { font-size: 0.9rem; color: var(--text-muted); max-width: 300px; }
+.completion-btns { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 300px; }
+
+/* ===================== Info Modal ===================== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+}
+.modal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; color: var(--primary); }
+.shortcut-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.shortcut-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.shortcut-table td:first-child { font-weight: 700; color: var(--primary); width: 80px; }
+kbd {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  font-family: monospace;
+}
+
+/* ===================== Toast ===================== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--text);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  z-index: 200;
+  transition: transform 0.3s;
+  white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ===================== Word Detail (from mastered) ===================== */
+.detail-nav { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ===================== Loading ===================== */
+.loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  gap: 8px;
+}
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===================== Empty State ===================== */
+.empty-state { text-align: center; color: var(--text-muted); font-size: 0.9rem; padding: 30px; }
+
+/* ===================== Responsive ===================== */
+@media (min-width: 480px) {
+  .srs-btns { gap: 8px; }
+  .srs-btn { padding: 12px 8px; font-size: 0.9rem; }
+  .word-main { font-size: clamp(2.5rem, 6vw, 3.5rem); }
+}
+@media (max-height: 650px) {
+  .card-face { padding: 14px; }
+  .card-front-content { min-height: 120px; }
+  .word-main { font-size: 2rem; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== Login Screen ===== -->
+  <div id="screen-login" class="screen active">
+    <div class="login-hero">
+      <div class="login-logo">🎌</div>
+      <div class="login-title">JLPT 單字王</div>
+      <div class="login-sub">請輸入你的名字開始學習</div>
+      <div class="input-group" style="max-width:320px;width:100%">
+        <label class="input-label">選擇已有帳號</label>
+        <select id="user-select" class="input-field">
+          <option value="">── 選擇 ──</option>
+        </select>
+        <label class="input-label">或輸入新名字</label>
+        <input id="name-input" class="input-field" type="text" placeholder="你的名字" maxlength="20" autocomplete="off">
+        <button id="btn-login" class="btn btn-primary btn-full">開始！</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Level Select Screen ===== -->
+  <div id="screen-level" class="screen">
+    <div class="header">
+      <div class="header-title">🎌 JLPT 單字王</div>
+      <div id="header-user" class="header-user"></div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">登出</button>
+    </div>
+    <div style="font-size:0.9rem;color:var(--text-muted);font-weight:600;padding:4px 0">選擇練習等級</div>
+    <div class="level-grid" id="level-grid"></div>
+    <div style="margin-top:auto;display:flex;gap:8px;">
+      <button class="btn btn-outline btn-full" onclick="showScreen('progress')">📊 學習記錄</button>
+    </div>
+  </div>
+
+  <!-- ===== Mode Select Screen ===== -->
+  <div id="screen-mode" class="screen">
+    <div class="header">
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('level')">← 返回</button>
+      <div class="header-title" id="mode-level-title"></div>
+    </div>
+    <div class="mode-grid">
+      <div class="mode-card" onclick="startStudy()">
+        <div class="mode-icon">📚</div>
+        <div class="mode-title">學習模式</div>
+        <div class="mode-desc">每次隨機 20 個單字，使用 SRS 間隔重複法，已學會的單字不重複出現</div>
+      </div>
+      <div class="mode-card" onclick="startQuiz()">
+        <div class="mode-icon">📝</div>
+        <div class="mode-title">測驗模式</div>
+        <div class="mode-desc">隨機 50 個單字測驗，測試自己的實力並計算分數</div>
+      </div>
+      <div class="mode-card" onclick="showMastered()">
+        <div class="mode-icon">⭐</div>
+        <div class="mode-title">已學會單字</div>
+        <div class="mode-desc" id="mastered-mode-desc">查看已標記學會的單字列表</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Study Screen ===== -->
+  <div id="screen-study" class="screen">
+    <div class="header">
+      <button class="btn btn-ghost btn-sm" onclick="confirmQuit('study')">✕ 結束</button>
+      <div class="header-title" id="study-level-title"></div>
+      <button class="btn btn-ghost btn-sm" id="study-info-btn" onclick="showModal()">ⓘ</button>
+    </div>
+
+    <div class="progress-area">
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="study-progress-fill" style="width:0%"></div></div>
+      <div class="progress-info">
+        <span id="study-progress-text">0 / 0</span>
+        <span class="progress-stats">
+          <span class="stat-again" id="stat-again">再:0</span>
+          <span class="stat-hard" id="stat-hard">難:0</span>
+          <span class="stat-good" id="stat-good">好:0</span>
+          <span class="stat-easy" id="stat-easy">易:0</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="card-wrap" id="study-card-wrap">
+      <div class="card-inner" id="study-card-inner">
+        <!-- Front -->
+        <div class="card-face" id="study-front" onclick="flipCard()">
+          <div class="card-front-content">
+            <div class="word-row">
+              <span class="word-main" id="study-word"></span>
+              <button class="btn-speaker" id="study-speaker-front" onclick="event.stopPropagation();playAudio()" title="播放發音">🔊</button>
+            </div>
+            <div class="word-hint">按空白鍵或點擊卡片翻面</div>
+          </div>
+        </div>
+        <!-- Back -->
+        <div class="card-face card-back-face" id="study-back">
+          <div class="card-back-content">
+            <div class="back-word-row">
+              <span class="back-word" id="back-word"></span>
+              <span class="back-reading" id="back-reading"></span>
+              <button class="btn-speaker" onclick="playAudio()" title="播放發音">🔊</button>
+            </div>
+            <span class="back-pos" id="back-pos"></span>
+            <div class="divider"></div>
+            <div class="back-zh" id="back-zh"></div>
+            <div class="back-example" id="back-example"></div>
+            <div class="back-example-zh" id="back-example-zh"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SRS Buttons (shown when card is flipped) -->
+    <div class="srs-btns" id="srs-btns" style="display:none">
+      <button class="srs-btn srs-again" onclick="srsAction('again')">Again<span class="srs-sub">1鍵</span></button>
+      <button class="srs-btn srs-hard"  onclick="srsAction('hard')">Hard<span class="srs-sub">2鍵</span></button>
+      <button class="srs-btn srs-good"  onclick="srsAction('good')">Good<span class="srs-sub">3鍵</span></button>
+      <button class="srs-btn srs-easy"  onclick="srsAction('easy')">Easy<span class="srs-sub">4鍵</span></button>
+    </div>
+    <!-- Flip hint (shown when card is not flipped) -->
+    <div id="flip-hint" class="srs-btns" style="justify-content:center">
+      <button class="btn btn-primary" style="grid-column:1/-1;width:100%;max-width:300px;margin:0 auto" onclick="flipCard()">翻面查看答案</button>
+    </div>
+  </div>
+
+  <!-- ===== Quiz Screen ===== -->
+  <div id="screen-quiz" class="screen">
+    <div class="header">
+      <button class="btn btn-ghost btn-sm" onclick="confirmQuit('quiz')">✕ 結束</button>
+      <div class="header-title" id="quiz-level-title"></div>
+    </div>
+
+    <div class="progress-area">
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="quiz-progress-fill" style="width:0%"></div></div>
+      <div class="progress-info">
+        <span id="quiz-progress-text">0 / 50</span>
+        <span>✅ <span id="quiz-yes-count">0</span> &nbsp; ❌ <span id="quiz-no-count">0</span></span>
+      </div>
+    </div>
+
+    <div class="card-wrap" id="quiz-card-wrap">
+      <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px 20px;width:100%;max-width:520px">
+        <div class="card-front-content">
+          <div class="word-row">
+            <span class="word-main" id="quiz-word"></span>
+            <button class="btn-speaker" onclick="playQuizAudio()" title="播放發音">🔊</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quiz-btns">
+      <button class="btn srs-btn quiz-no" onclick="quizAction(false)">✕ 不會<span class="srs-sub">N 鍵</span></button>
+      <button class="btn srs-btn quiz-yes" onclick="quizAction(true)">✓ 會<span class="srs-sub">Y 鍵</span></button>
+    </div>
+  </div>
+
+  <!-- ===== Progress Screen ===== -->
+  <div id="screen-progress" class="screen">
+    <div class="header">
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('level')">← 返回</button>
+      <div class="header-title">📊 學習記錄</div>
+    </div>
+    <div class="progress-screen-content" id="progress-content">
+      <div class="loading"><div class="spinner"></div> 載入中…</div>
+    </div>
+  </div>
+
+  <!-- ===== Mastered Words Screen ===== -->
+  <div id="screen-mastered" class="screen">
+    <div class="header">
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('mode')">← 返回</button>
+      <div class="header-title">⭐ 已學會單字</div>
+    </div>
+    <div class="mastered-controls" id="mastered-controls"></div>
+    <div class="mastered-list" id="mastered-list">
+      <div class="loading"><div class="spinner"></div> 載入中…</div>
+    </div>
+  </div>
+
+  <!-- ===== Word Detail Screen ===== -->
+  <div id="screen-word-detail" class="screen">
+    <div class="header">
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('mastered')">← 返回列表</button>
+      <div class="header-title" id="detail-title">單字詳情</div>
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('level')">返回主頁</button>
+    </div>
+    <div class="card-wrap">
+      <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;width:100%;max-width:520px">
+        <div class="card-back-content" id="detail-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Study Completion Screen ===== -->
+  <div id="screen-study-complete" class="screen">
+    <div class="completion-screen">
+      <div class="completion-emoji">🎉</div>
+      <div class="completion-title">恭喜你完成本次學習，你好棒！</div>
+      <div class="completion-sub" id="study-complete-sub"></div>
+      <div class="completion-btns">
+        <button class="btn btn-primary btn-full" onclick="startStudy()">繼續下一個練習</button>
+        <button class="btn btn-outline btn-full" onclick="showScreen('level')">返回主頁</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Quiz Completion Screen ===== -->
+  <div id="screen-quiz-complete" class="screen">
+    <div class="completion-screen">
+      <div class="completion-emoji" id="quiz-complete-emoji">🎊</div>
+      <div class="completion-title">測驗完成！</div>
+      <div class="completion-score" id="quiz-complete-score"></div>
+      <div class="completion-sub" id="quiz-complete-msg"></div>
+      <div class="completion-btns">
+        <button class="btn btn-primary btn-full" onclick="startQuiz()">繼續下一個測驗</button>
+        <button class="btn btn-outline btn-full" onclick="showScreen('level')">返回主頁</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<!-- ===== Info Modal ===== -->
+<div class="modal-overlay" id="info-modal" onclick="closeModal(event)">
+  <div class="modal-box">
+    <div class="modal-title">⌨️ 快捷鍵說明</div>
+    <table class="shortcut-table">
+      <tr><td><kbd>Space</kbd></td><td>翻轉卡片</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td>播放發音</td></tr>
+      <tr><td><kbd>1</kbd></td><td><span style="color:var(--btn-again)">Again</span> — 立刻再複習</td></tr>
+      <tr><td><kbd>2</kbd></td><td><span style="color:var(--btn-hard)">Hard</span> — 插入中間位置</td></tr>
+      <tr><td><kbd>3</kbd></td><td><span style="color:var(--btn-good)">Good</span> — 移至末尾</td></tr>
+      <tr><td><kbd>4</kbd></td><td><span style="color:var(--btn-easy)">Easy</span> — 標為已學會</td></tr>
+      <tr><td><kbd>Y</kbd></td><td>測驗模式：會</td></tr>
+      <tr><td><kbd>N</kbd></td><td>測驗模式：不會</td></tr>
+    </table>
+    <button class="btn btn-primary btn-full" style="margin-top:14px" onclick="closeModal()">關閉</button>
+  </div>
+</div>
+
+<!-- ===== Toast ===== -->
+<div class="toast" id="toast"></div>
+
+<script>
+// =====================================================================
+// State
+// =====================================================================
+const S = {
+  userId: null,
+  userName: null,
+  token: null,
+  currentLevel: null,
+  allLevels: [],
+
+  // Study
+  studyQueue: [],
+  studyTotal: 0,
+  studyStats: { again: 0, hard: 0, good: 0, easy: 0 },
+  studyFlipped: false,
+  studyCurrentWord: null,
+
+  // Quiz
+  quizQueue: [],
+  quizTotal: 50,
+  quizYes: 0,
+  quizNo: 0,
+  quizCurrentWord: null,
+
+  // Mastered preview
+  masteredWords: [],
+  masteredDetailWord: null,
+};
+
+const STORAGE_KEY = 'jlpt_session_v1';
+
+// =====================================================================
+// Utils
+// =====================================================================
+async function api(method, path, body) {
+  const opts = { method, credentials: 'include', headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ detail: r.statusText }));
+    throw new Error(err.detail || r.statusText);
+  }
+  return r.json();
+}
+
+function toast(msg, duration = 2000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), duration);
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// =====================================================================
+// Session persistence
+// =====================================================================
+function saveSession() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      userId: S.userId, userName: S.userName, token: S.token,
+      currentLevel: S.currentLevel,
+      studyQueue: S.studyQueue, studyTotal: S.studyTotal,
+      studyStats: S.studyStats, studyFlipped: S.studyFlipped,
+      studyCurrentWord: S.studyCurrentWord,
+      quizQueue: S.quizQueue, quizYes: S.quizYes, quizNo: S.quizNo,
+      quizCurrentWord: S.quizCurrentWord,
+    }));
+  } catch (e) {}
+}
+
+function loadSession() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    Object.assign(S, data);
+    return !!S.userId;
+  } catch (e) { return false; }
+}
+
+function clearSession() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+// =====================================================================
+// Screen management
+// =====================================================================
+let currentScreen = 'login';
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('screen-' + name);
+  if (el) el.classList.add('active');
+  currentScreen = name;
+  saveSession();
+}
+
+// =====================================================================
+// Login
+// =====================================================================
+async function initLogin() {
+  const users = await api('GET', '/api/users').catch(() => []);
+  const sel = document.getElementById('user-select');
+  sel.innerHTML = '<option value="">── 選擇 ──</option>';
+  users.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u;
+    opt.textContent = u;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', () => {
+    if (sel.value) document.getElementById('name-input').value = sel.value;
+  });
+}
+
+async function login() {
+  const name = document.getElementById('name-input').value.trim();
+  if (!name) { toast('請輸入名字'); return; }
+  try {
+    const r = await api('POST', '/api/login', { name });
+    S.userId = r.user_id;
+    S.userName = r.name;
+    S.token = r.token;
+    document.getElementById('header-user').textContent = name;
+    await loadLevels();
+    showScreen('level');
+    saveSession();
+  } catch (e) {
+    toast('登入失敗：' + e.message);
+  }
+}
+
+async function logout() {
+  await api('POST', '/api/logout').catch(() => {});
+  clearSession();
+  Object.assign(S, { userId: null, userName: null, token: null, currentLevel: null });
+  await initLogin();
+  showScreen('login');
+}
+
+// =====================================================================
+// Levels
+// =====================================================================
+async function loadLevels() {
+  S.allLevels = await api('GET', '/api/levels');
+  renderLevelGrid();
+}
+
+function renderLevelGrid() {
+  const grid = document.getElementById('level-grid');
+  grid.innerHTML = '';
+  S.allLevels.forEach(l => {
+    const btn = document.createElement('button');
+    btn.className = 'level-btn';
+    btn.disabled = !l.available;
+    btn.innerHTML = `
+      <div class="level-name">${l.level}</div>
+      ${l.available
+        ? `<div class="level-count">${l.total} 個單字</div>`
+        : '<div class="level-na">即將開放</div>'}
+    `;
+    if (l.available) {
+      btn.onclick = () => selectLevel(l.level);
+    }
+    grid.appendChild(btn);
+  });
+}
+
+async function selectLevel(level) {
+  S.currentLevel = level;
+  const masteredIds = await getMasteredIds(level);
+  const levelInfo = S.allLevels.find(l => l.level === level);
+  const masteredCount = masteredIds.length;
+  document.getElementById('mode-level-title').textContent = `${level} 學習`;
+  document.getElementById('mastered-mode-desc').textContent =
+    `查看已標記學會的單字列表（${masteredCount} / ${levelInfo?.total || 0}）`;
+  showScreen('mode');
+}
+
+async function getMasteredIds(level) {
+  try {
+    const words = await api('GET', `/api/mastered-words/${S.userId}/${level}`);
+    return words.map(w => w.id);
+  } catch { return []; }
+}
+
+// =====================================================================
+// Study Mode
+// =====================================================================
+async function startStudy() {
+  if (!S.currentLevel) return;
+  showScreen('study');
+  document.getElementById('study-level-title').textContent = `${S.currentLevel} 學習模式`;
+
+  try {
+    const words = await api('GET',
+      `/api/words/${S.currentLevel}?user_id=${S.userId}&exclude_mastered=true`);
+    if (!words.length) {
+      toast('🎉 所有單字都已學會！');
+      showScreen('mode');
+      return;
+    }
+    const batch = shuffle(words).slice(0, 20);
+    S.studyQueue = batch;
+    S.studyTotal = batch.length;
+    S.studyStats = { again: 0, hard: 0, good: 0, easy: 0 };
+    S.studyFlipped = false;
+    saveSession();
+    renderStudyCard();
+  } catch (e) {
+    toast('載入失敗：' + e.message);
+    showScreen('mode');
+  }
+}
+
+function renderStudyCard() {
+  if (!S.studyQueue.length) {
+    completeStudy();
+    return;
+  }
+  const word = S.studyQueue[0];
+  S.studyCurrentWord = word;
+  S.studyFlipped = false;
+
+  // Front
+  document.getElementById('study-word').textContent = word.word;
+  // Back
+  document.getElementById('back-word').textContent = word.word;
+  document.getElementById('back-reading').textContent = `(${word.reading})`;
+  document.getElementById('back-pos').textContent = word.pos || '';
+  document.getElementById('back-zh').textContent = word.zh || '';
+  document.getElementById('back-example').textContent = word.example || '';
+  document.getElementById('back-example-zh').textContent = word.example_zh || '';
+
+  // Reset flip
+  const cardInner = document.getElementById('study-card-inner');
+  cardInner.classList.remove('flipped');
+  document.getElementById('srs-btns').style.display = 'none';
+  document.getElementById('flip-hint').style.display = '';
+
+  updateStudyProgress();
+  saveSession();
+}
+
+function updateStudyProgress() {
+  const remaining = S.studyQueue.length;
+  const total = S.studyTotal;
+  const done = total - remaining;
+  const pct = total ? (done / total * 100) : 0;
+  document.getElementById('study-progress-fill').style.width = pct + '%';
+  document.getElementById('study-progress-text').textContent = `剩餘 ${remaining} / ${total}`;
+  document.getElementById('stat-again').textContent = `再:${S.studyStats.again}`;
+  document.getElementById('stat-hard').textContent = `難:${S.studyStats.hard}`;
+  document.getElementById('stat-good').textContent = `好:${S.studyStats.good}`;
+  document.getElementById('stat-easy').textContent = `易:${S.studyStats.easy}`;
+}
+
+function flipCard() {
+  if (currentScreen !== 'study') return;
+  S.studyFlipped = !S.studyFlipped;
+  const cardInner = document.getElementById('study-card-inner');
+  cardInner.classList.toggle('flipped', S.studyFlipped);
+  document.getElementById('srs-btns').style.display = S.studyFlipped ? '' : 'none';
+  document.getElementById('flip-hint').style.display = S.studyFlipped ? 'none' : '';
+  saveSession();
+}
+
+function srsAction(action) {
+  if (currentScreen !== 'study' || !S.studyCurrentWord) return;
+  const word = S.studyQueue.shift();
+  S.studyStats[action]++;
+
+  if (action === 'again') {
+    S.studyQueue.splice(1, 0, word);
+  } else if (action === 'hard') {
+    const mid = Math.max(1, Math.floor(S.studyQueue.length / 2));
+    S.studyQueue.splice(mid, 0, word);
+  } else if (action === 'good') {
+    S.studyQueue.push(word);
+  } else if (action === 'easy') {
+    // Mark as mastered
+    api('POST', '/api/mastered', {
+      user_id: S.userId, level: S.currentLevel, word_id: word.id
+    }).catch(() => {});
+    toast(`✅ 「${word.word}」已加入已學會列表`);
+  }
+
+  renderStudyCard();
+}
+
+async function completeStudy() {
+  await api('POST', '/api/study/complete', {
+    user_id: S.userId, level: S.currentLevel
+  }).catch(() => {});
+
+  const totalEasy = S.studyStats.easy;
+  document.getElementById('study-complete-sub').textContent =
+    `本次共學習 ${S.studyTotal} 個單字，其中 ${totalEasy} 個標為已學會`;
+  showScreen('study-complete');
+}
+
+// =====================================================================
+// Quiz Mode
+// =====================================================================
+async function startQuiz() {
+  if (!S.currentLevel) return;
+  showScreen('quiz');
+  document.getElementById('quiz-level-title').textContent = `${S.currentLevel} 測驗模式`;
+
+  try {
+    const words = await api('GET', `/api/words/${S.currentLevel}`);
+    if (!words.length) { toast('尚無單字資料'); showScreen('mode'); return; }
+    const batch = shuffle(words).slice(0, 50);
+    S.quizQueue = batch;
+    S.quizTotal = batch.length;
+    S.quizYes = 0;
+    S.quizNo = 0;
+    saveSession();
+    renderQuizCard();
+  } catch (e) {
+    toast('載入失敗：' + e.message);
+    showScreen('mode');
+  }
+}
+
+function renderQuizCard() {
+  if (!S.quizQueue.length) {
+    completeQuiz();
+    return;
+  }
+  const word = S.quizQueue[0];
+  S.quizCurrentWord = word;
+  document.getElementById('quiz-word').textContent = word.word;
+  updateQuizProgress();
+  saveSession();
+}
+
+function updateQuizProgress() {
+  const remaining = S.quizQueue.length;
+  const total = S.quizTotal;
+  const done = total - remaining;
+  const pct = total ? (done / total * 100) : 0;
+  document.getElementById('quiz-progress-fill').style.width = pct + '%';
+  document.getElementById('quiz-progress-text').textContent = `剩餘 ${remaining} / ${total}`;
+  document.getElementById('quiz-yes-count').textContent = S.quizYes;
+  document.getElementById('quiz-no-count').textContent = S.quizNo;
+}
+
+function quizAction(knows) {
+  if (currentScreen !== 'quiz' || !S.quizCurrentWord) return;
+  S.quizQueue.shift();
+  if (knows) S.quizYes++; else S.quizNo++;
+  renderQuizCard();
+}
+
+async function completeQuiz() {
+  const score = Math.round((S.quizYes / S.quizTotal) * 100);
+  await api('POST', '/api/quiz/complete', {
+    user_id: S.userId, level: S.currentLevel, score
+  }).catch(() => {});
+
+  let emoji, msg;
+  if (score === 100) { emoji = '🏆'; msg = '完美滿分！你真的太厲害了！'; }
+  else if (score >= 80) { emoji = '🌟'; msg = '非常優秀！繼續保持！'; }
+  else if (score >= 60) { emoji = '👍'; msg = '不錯唷！繼續加油，你快到了！'; }
+  else { emoji = '💪'; msg = '沒關係，多練習幾次一定會進步的！'; }
+
+  document.getElementById('quiz-complete-emoji').textContent = emoji;
+  document.getElementById('quiz-complete-score').textContent = `${score} 分`;
+  document.getElementById('quiz-complete-msg').textContent = `答對 ${S.quizYes} / ${S.quizTotal} 題。${msg}`;
+  showScreen('quiz-complete');
+}
+
+// =====================================================================
+// Audio
+// =====================================================================
+let currentAudio = null;
+
+function playAudio() {
+  const word = S.studyCurrentWord;
+  if (!word) return;
+  playWordAudio(S.currentLevel, word.id);
+}
+
+function playQuizAudio() {
+  const word = S.quizCurrentWord;
+  if (!word) return;
+  playWordAudio(S.currentLevel, word.id);
+}
+
+function playWordAudio(level, wordId) {
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  const audio = new Audio(`/api/audio/${level}/${wordId}`);
+  currentAudio = audio;
+  audio.play().catch(() => toast('音檔播放失敗'));
+}
+
+// =====================================================================
+// Progress Screen
+// =====================================================================
+async function showProgress() {
+  showScreen('progress');
+  const content = document.getElementById('progress-content');
+  content.innerHTML = '<div class="loading"><div class="spinner"></div> 載入中…</div>';
+  try {
+    const progress = await api('GET', `/api/progress/${S.userId}`);
+    content.innerHTML = '';
+    ['N4', 'N3', 'N2', 'N1'].forEach(level => {
+      const p = progress[level];
+      if (!p) return;
+      const pct = p.total ? Math.round(p.mastered / p.total * 100) : 0;
+      const card = document.createElement('div');
+      card.className = 'progress-card';
+      card.innerHTML = `
+        <div class="progress-card-header">
+          <span class="progress-level-tag">${level}</span>
+          ${p.available ? `<span class="progress-percent">${pct}%</span>` : '<span style="color:var(--text-muted);font-size:0.8rem">尚未開放</span>'}
+        </div>
+        ${p.available ? `
+          <div class="progress-row"><span>已學會單字</span><strong>${p.mastered} / ${p.total}</strong></div>
+          <div class="progress-bar-bg" style="margin:4px 0 8px"><div class="progress-bar-fill" style="width:${pct}%;background:var(--success)"></div></div>
+          <div class="progress-row"><span>🔖 練習次數</span><strong>${p.study.count} 次</strong></div>
+          <div class="progress-row"><span>最近練習</span><strong>${p.study.last_at ? fmtDate(p.study.last_at) : '尚未練習'}</strong></div>
+          <div class="progress-row"><span>📝 測驗次數</span><strong>${p.quiz.count} 次</strong></div>
+          <div class="progress-row"><span>最佳成績</span><strong>${p.quiz.best_score != null ? p.quiz.best_score + ' 分' : '尚未測驗'}</strong></div>
+          <div class="progress-row"><span>最近測驗</span><strong>${p.quiz.last_at ? fmtDate(p.quiz.last_at) : '尚未測驗'}</strong></div>
+          <div class="reset-row">
+            <button class="btn btn-ghost btn-sm" onclick="resetMastered('${level}')">重置已學會</button>
+            <button class="btn btn-ghost btn-sm" onclick="resetStudy('${level}')">重置練習記錄</button>
+            <button class="btn btn-ghost btn-sm" onclick="resetQuiz('${level}')">重置測驗記錄</button>
+          </div>
+        ` : ''}
+      `;
+      content.appendChild(card);
+    });
+  } catch (e) {
+    content.innerHTML = `<div class="empty-state">載入失敗：${e.message}</div>`;
+  }
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso.replace(' ', 'T') + 'Z');
+    return d.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  } catch { return iso; }
+}
+
+async function resetMastered(level) {
+  if (!confirm(`確定要重置 ${level} 的所有已學會單字嗎？`)) return;
+  await api('DELETE', `/api/mastered/${S.userId}/${level}`);
+  toast('已重置');
+  showProgress();
+}
+async function resetStudy(level) {
+  if (!confirm(`確定要重置 ${level} 的練習記錄嗎？`)) return;
+  await api('DELETE', `/api/study/reset/${S.userId}/${level}`);
+  toast('已重置');
+  showProgress();
+}
+async function resetQuiz(level) {
+  if (!confirm(`確定要重置 ${level} 的測驗記錄嗎？`)) return;
+  await api('DELETE', `/api/quiz/reset/${S.userId}/${level}`);
+  toast('已重置');
+  showProgress();
+}
+
+// =====================================================================
+// Mastered Words
+// =====================================================================
+async function showMastered() {
+  showScreen('mastered');
+  const listEl = document.getElementById('mastered-list');
+  const ctrlEl = document.getElementById('mastered-controls');
+  listEl.innerHTML = '<div class="loading"><div class="spinner"></div> 載入中…</div>';
+  ctrlEl.innerHTML = '';
+
+  try {
+    const words = await api('GET', `/api/mastered-words/${S.userId}/${S.currentLevel}`);
+    S.masteredWords = words;
+    ctrlEl.innerHTML = `
+      <span style="font-size:0.85rem;color:var(--text-muted);padding:4px 0">
+        ${S.currentLevel} 已學會：${words.length} 個
+      </span>
+    `;
+    listEl.innerHTML = '';
+    if (!words.length) {
+      listEl.innerHTML = '<div class="empty-state">還沒有已學會的單字<br>在學習模式點擊 Easy 即可加入</div>';
+      return;
+    }
+    words.forEach(w => {
+      const item = document.createElement('div');
+      item.className = 'mastered-item';
+      item.innerHTML = `
+        <div>
+          <div class="mastered-word">${w.word}</div>
+          <div class="mastered-zh">${w.zh || ''}</div>
+        </div>
+        <div style="color:var(--text-muted);font-size:0.8rem">${w.reading || ''}</div>
+      `;
+      item.onclick = () => showWordDetail(w);
+      listEl.appendChild(item);
+    });
+  } catch (e) {
+    listEl.innerHTML = `<div class="empty-state">載入失敗：${e.message}</div>`;
+  }
+}
+
+function showWordDetail(word) {
+  S.masteredDetailWord = word;
+  document.getElementById('detail-title').textContent = word.word;
+  const content = document.getElementById('detail-content');
+  content.innerHTML = `
+    <div class="back-word-row">
+      <span class="back-word">${word.word}</span>
+      <span class="back-reading">(${word.reading || ''})</span>
+      <button class="btn-speaker" onclick="playWordAudio('${S.currentLevel}', ${word.id})">🔊</button>
+    </div>
+    <span class="back-pos">${word.pos || ''}</span>
+    <div class="divider"></div>
+    <div class="back-zh">${word.zh || ''}</div>
+    <div class="back-example">${word.example || ''}</div>
+    <div class="back-example-zh">${word.example_zh || ''}</div>
+  `;
+  showScreen('word-detail');
+}
+
+// =====================================================================
+// Quit confirmation
+// =====================================================================
+function confirmQuit(mode) {
+  if (confirm('確定要結束本次' + (mode === 'study' ? '學習' : '測驗') + '嗎？')) {
+    showScreen('mode');
+  }
+}
+
+// =====================================================================
+// Modal
+// =====================================================================
+function showModal() {
+  document.getElementById('info-modal').classList.add('open');
+}
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('info-modal')) {
+    document.getElementById('info-modal').classList.remove('open');
+  }
+}
+
+// =====================================================================
+// Keyboard shortcuts
+// =====================================================================
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const key = e.key.toLowerCase();
+
+  if (currentScreen === 'study') {
+    if (key === ' ') { e.preventDefault(); flipCard(); }
+    else if (key === 'enter') { e.preventDefault(); playAudio(); }
+    else if (key === '1' && S.studyFlipped) srsAction('again');
+    else if (key === '2' && S.studyFlipped) srsAction('hard');
+    else if (key === '3' && S.studyFlipped) srsAction('good');
+    else if (key === '4' && S.studyFlipped) srsAction('easy');
+  } else if (currentScreen === 'quiz') {
+    if (key === 'y') quizAction(true);
+    else if (key === 'n') quizAction(false);
+    else if (key === 'enter') { e.preventDefault(); playQuizAudio(); }
+  }
+});
+
+// =====================================================================
+// Boot
+// =====================================================================
+async function boot() {
+  const restored = loadSession();
+
+  await initLogin();
+
+  if (restored && S.userId) {
+    document.getElementById('header-user').textContent = S.userName;
+    document.getElementById('name-input').value = S.userName;
+
+    // Re-login to refresh server session (cookie may have expired)
+    try {
+      const r = await api('POST', '/api/login', { name: S.userName });
+      S.userId = r.user_id;
+      S.token = r.token;
+      await loadLevels();
+
+      // Resume interrupted session
+      if (currentScreen === 'study' && S.studyQueue?.length) {
+        showScreen('study');
+        document.getElementById('study-level-title').textContent = `${S.currentLevel} 學習模式`;
+        renderStudyCard();
+        if (S.studyFlipped) flipCard();
+      } else if (currentScreen === 'quiz' && S.quizQueue?.length) {
+        showScreen('quiz');
+        document.getElementById('quiz-level-title').textContent = `${S.currentLevel} 測驗模式`;
+        renderQuizCard();
+      } else {
+        showScreen('level');
+      }
+    } catch {
+      showScreen('login');
+    }
+  } else {
+    showScreen('login');
+  }
+
+  // Wire up login button
+  document.getElementById('btn-login').onclick = login;
+  document.getElementById('name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') login();
+  });
+}
+
+// Patch showScreen to handle async screens
+const _showScreen = showScreen;
+window.showScreen = function(name) {
+  _showScreen(name);
+  if (name === 'progress') showProgress();
+  if (name === 'mastered') showMastered();
+};
+
+boot();
+</script>
+</body>
+</html>
