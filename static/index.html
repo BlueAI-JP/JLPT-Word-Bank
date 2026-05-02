@@ -777,6 +777,12 @@ kbd {
   font-size: 0.68rem; font-weight: 700;
   background: rgba(201,168,76,0.2); color: var(--primary);
 }
+.btn-deluser {
+  font-size: 0.72rem; padding: 3px 8px;
+  background: rgba(192,57,43,0.15); color: #e74c3c;
+  border: 1px solid rgba(192,57,43,0.35); border-radius: 6px; cursor: pointer;
+}
+.btn-deluser:hover { background: rgba(192,57,43,0.35); }
 .btn-setvip {
   font-size: 0.72rem; padding: 3px 8px;
   background: rgba(201,168,76,0.15); color: var(--primary);
@@ -2214,7 +2220,8 @@ async function adminLoadUsers() {
              ${u.is_vip
               ? `<button class="btn-unsetvip" onclick="adminSetVip(${u.id},false)">取消VIP</button>`
               : `<button class="btn-setvip"   onclick="adminSetVip(${u.id},true)">設為VIP</button>`
-            }`
+            }
+             <button class="btn-deluser" onclick="adminDeleteUser(${u.id},'${u.name.replace(/'/g,"\\'")}')">刪除</button>`
         }</td>
       `;
       tbody.appendChild(tr);
@@ -2241,6 +2248,16 @@ async function adminUnbanUser(userId) {
     toast('✓ 已解封');
     adminLoadUsers();
   } catch (e) { toast('解封失敗：' + e.message); }
+}
+
+async function adminDeleteUser(userId, name) {
+  if (!confirm(`確定要刪除使用者「${name}」嗎？\n\n此操作將永久刪除該帳號與所有學習記錄，無法復原！`)) return;
+  if (!confirm(`再次確認：永久刪除「${name}」？`)) return;
+  try {
+    await api('DELETE', `/api/admin/users/${userId}`);
+    toast(`✓ 已刪除使用者 ${name}`);
+    adminLoadUsers();
+  } catch (e) { toast('刪除失敗：' + e.message); }
 }
 
 async function adminSetVip(userId, isVip) {

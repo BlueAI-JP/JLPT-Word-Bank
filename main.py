@@ -673,6 +673,21 @@ async def admin_unban_user(
     return {"ok": True}
 
 
+@app.delete("/api/admin/users/{user_id}")
+async def admin_delete_user(
+    user_id: int,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    admin_uid = await _require_admin(session_token)
+    if user_id == admin_uid:
+        raise HTTPException(400, "不可刪除自己的帳號")
+    try:
+        await db.delete_user(user_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True}
+
+
 @app.post("/api/admin/users/{user_id}/vip")
 async def admin_set_vip(
     user_id: int,

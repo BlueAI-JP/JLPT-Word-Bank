@@ -212,6 +212,35 @@ async def get_user_by_id(user_id: int) -> Optional[dict]:
     }
 
 
+async def delete_user(user_id: int) -> None:
+    """Delete a user and all their associated data. Raises ValueError for protected accounts."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Safety: cannot delete anonymous user or default admin
+        async with db.execute(
+            "SELECT is_anonymous, email FROM users WHERE id = ?", (user_id,)
+        ) as cur:
+            row = await cur.fetchone()
+        if not row:
+            raise ValueError("使用者不存在")
+        if row[0]:
+            raise ValueError("不可刪除匿名使用者帳號")
+        if row[1] and row[1].lower() == DEFAULT_ADMIN.lower():
+            raise ValueError("不可刪除預設管理者帳號")
+
+        # Delete all associated data first (foreign key order)
+        for sql in [
+            "DELETE FROM mastered_words      WHERE user_id = ?",
+            "DELETE FROM study_sessions      WHERE user_id = ?",
+            "DELETE FROM quiz_sessions       WHERE user_id = ?",
+            "DELETE FROM quiz_wrong_words    WHERE user_id = ?",
+            "DELETE FROM book_read_progress  WHERE user_id = ?",
+            "DELETE FROM banned_users        WHERE user_id = ?",
+            "DELETE FROM users               WHERE id = ?",
+        ]:
+            await db.execute(sql, (user_id,))
+        await db.commit()
+
+
 async def set_user_vip(user_id: int, is_vip: bool) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
