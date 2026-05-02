@@ -1113,11 +1113,13 @@ async function api(method, path, body, { retries = 2, retryDelay = 400 } = {}) {
     }
   }
 }
+let _toastTimer = null;
 function toast(msg, duration = 2000) {
   const el = document.getElementById('toast');
+  if (_toastTimer) clearTimeout(_toastTimer);
   el.textContent = msg;
   el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), duration);
+  _toastTimer = setTimeout(() => { el.classList.remove('show'); _toastTimer = null; }, duration);
 }
 function shuffle(arr) {
   const a = [...arr];
@@ -1538,7 +1540,7 @@ function playWordAudio(level, wordId) {
 // Progress Screen
 // =====================================================================
 async function showProgress() {
-  showScreen('progress');
+  _showScreen('progress');
   const content = document.getElementById('progress-content');
   content.innerHTML = '<div class="loading"><div class="spinner"></div> 載入中…</div>';
   try {
@@ -1603,7 +1605,7 @@ async function resetWrongWords(level) {
 // Mastered Words
 // =====================================================================
 async function showMastered() {
-  showScreen('mastered');
+  _showScreen('mastered');
   const listEl = document.getElementById('mastered-list');
   const ctrlEl = document.getElementById('mastered-controls');
   listEl.innerHTML = '<div class="loading"><div class="spinner"></div> 載入中…</div>';
