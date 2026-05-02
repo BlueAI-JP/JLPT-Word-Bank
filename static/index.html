@@ -1252,31 +1252,34 @@ function renderLevelGrid() {
 }
 async function selectLevel(level) {
   S.currentLevel = level;
-  const masteredIds = await getMasteredIds(level);
-  const levelInfo = S.allLevels.find(l => l.level === level);
+  // 立即切換畫面，不等 API，避免點擊無反應的假象
   document.getElementById('mode-level-title').textContent = `${level} 學習`;
-  document.getElementById('mastered-mode-desc').textContent =
-    `查看已標記學會的單字列表（${masteredIds.length} / ${levelInfo?.total || 0}）`;
+  document.getElementById('mastered-mode-desc').textContent = '查看已標記學會的單字列表';
+  showScreen('mode');
 
+  // 兩個 API 並行，切換後背景更新卡片資訊
   const reviewCard = document.getElementById('review-mode-card');
   if (S.isAnonymous) {
     reviewCard.classList.add('mode-card-disabled');
     document.getElementById('review-mode-desc').textContent = '登入 Google 帳號後解鎖';
   } else {
     reviewCard.classList.remove('mode-card-disabled');
-    try {
-      const wrongWords = await api('GET', `/api/quiz/wrong-words/${S.userId}/${level}`);
-      if (wrongWords.length === 0) {
-        reviewCard.classList.add('disabled');
-        document.getElementById('review-mode-desc').textContent = '尚無錯誤單字記錄，先完成一次測驗吧！';
-      } else {
-        reviewCard.classList.remove('disabled');
-        document.getElementById('review-mode-desc').textContent =
-          `從 ${wrongWords.length} 個錯誤單字中隨機練習 20 個，按 Easy 可移除`;
-      }
-    } catch { }
+    const [masteredIds, wrongWords] = await Promise.all([
+      getMasteredIds(level),
+      api('GET', `/api/quiz/wrong-words/${S.userId}/${level}`).catch(() => []),
+    ]);
+    const levelInfo = S.allLevels.find(l => l.level === level);
+    document.getElementById('mastered-mode-desc').textContent =
+      `查看已標記學會的單字列表（${masteredIds.length} / ${levelInfo?.total || 0}）`;
+    if (wrongWords.length === 0) {
+      reviewCard.classList.add('disabled');
+      document.getElementById('review-mode-desc').textContent = '尚無錯誤單字記錄，先完成一次測驗吧！';
+    } else {
+      reviewCard.classList.remove('disabled');
+      document.getElementById('review-mode-desc').textContent =
+        `從 ${wrongWords.length} 個錯誤單字中隨機練習 20 個，按 Easy 可移除`;
+    }
   }
-  showScreen('mode');
 }
 async function getMasteredIds(level) {
   try {
