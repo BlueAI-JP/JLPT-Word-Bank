@@ -275,15 +275,77 @@ body::after {
 .stat-easy  { color: var(--btn-easy);  font-weight: 700; }
 
 /* ===================== Login Screen ===================== */
-#screen-login { padding: 0; justify-content: center; align-items: center; overflow: hidden; }
+#screen-login { padding: 0; justify-content: center; align-items: center; background: #040408; }
 
-/* Sakura bare branch — right side decoration */
-.sakura-branch-right {
-  position: absolute; right: -8px; top: 0;
-  width: 140px; height: 65%; pointer-events: none; z-index: 1; opacity: 0.8;
+/* Image-as-UI container */
+.login-image-wrap {
+  position: relative;
+  width: min(480px, 100vw);
+}
+.login-image-wrap > img {
+  width: 100%; height: auto; display: block;
 }
 
-/* Center content stack */
+/* Edge fade — blends image into page background (#040408) */
+.login-image-wrap::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 1;
+  background:
+    linear-gradient(to bottom, #040408 0%, transparent 14%, transparent 86%, #040408 100%),
+    linear-gradient(to right,  #040408 0%, transparent 10%, transparent 90%, #040408 100%);
+}
+
+/* Invisible overlay form — elements sit on top of image design */
+.login-overlay-form {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+/* Shared input style: transparent so image shows through */
+.overlay-select,
+.overlay-input {
+  position: absolute;
+  left: 15.5%; right: 15.5%;
+  background: rgba(6, 4, 14, 0.55);
+  border: none; outline: none;
+  color: #d4b040;
+  font-size: clamp(0.8rem, 2.5vw, 0.95rem);
+  font-family: inherit;
+  padding: 0 14px;
+  height: 5.5%;
+  -webkit-appearance: none; appearance: none;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.overlay-select { top: 49.5%; }
+.overlay-input  { top: 59.5%; }
+.overlay-select:focus,
+.overlay-input:focus  {
+  background: rgba(6, 4, 14, 0.75);
+  box-shadow: inset 0 0 12px rgba(0,0,0,0.6), 0 0 8px rgba(201,168,76,0.25);
+}
+.overlay-input::placeholder { color: rgba(201,168,76,0.3); }
+.overlay-select option { background: #0a0810; color: #c9a84c; }
+
+/* Button: invisible clickable area over image button graphic */
+.overlay-btn {
+  position: absolute;
+  top: 67.2%; left: 14%; right: 14%; height: 7%;
+  background: transparent;
+  border: none;
+  color: transparent;
+  font-size: 0;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+.overlay-btn:hover  { background: rgba(201,168,76,0.14); }
+.overlay-btn:active { background: rgba(201,168,76,0.28); }
+
+/* (Legacy login CSS kept for non-login screens that may share classes) */
 .login-center {
   position: relative; z-index: 2;
   display: flex; flex-direction: column; align-items: center;
@@ -643,74 +705,16 @@ kbd {
 
   <!-- ===== Login Screen ===== -->
   <div id="screen-login" class="screen active">
-
-    <!-- Sakura bare branch (right side) -->
-    <svg class="sakura-branch-right" viewBox="0 0 140 560" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <radialGradient id="budG" cx="40%" cy="30%" r="65%">
-          <stop offset="0%" stop-color="#ffdde6"/>
-          <stop offset="100%" stop-color="#d890a8"/>
-        </radialGradient>
-      </defs>
-      <!-- Main trunk -->
-      <path d="M 130 560 Q 118 450,108 340 Q 96 230,115 110 Q 122 50,105 -20"
-            stroke="#180f08" stroke-width="10" fill="none" stroke-linecap="round"/>
-      <!-- Upper-left sub branch -->
-      <path d="M 112 160 Q 72 132, 32 104 Q 14 92, 2 74"
-            stroke="#180f08" stroke-width="6" fill="none" stroke-linecap="round"/>
-      <!-- Middle sub branch -->
-      <path d="M 106 310 Q 64 290, 28 272"
-            stroke="#180f08" stroke-width="4.5" fill="none" stroke-linecap="round"/>
-      <!-- Small twig 1 -->
-      <path d="M 32 104 Q 20 86, 12 70"
-            stroke="#180f08" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <!-- Small twig 2 -->
-      <path d="M 109 228 Q 84 212, 66 206"
-            stroke="#180f08" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-      <!-- === Sakura blossoms / buds === -->
-      <!-- Cluster near top -->
-      <circle cx="106" cy="5"  r="5.5" fill="url(#budG)" opacity="0.88"/>
-      <circle cx="96"  cy="18" r="4.5" fill="#ffc8d8" opacity="0.75"/>
-      <circle cx="116" cy="22" r="4"   fill="#ffe0ea" opacity="0.7"/>
-      <circle cx="100" cy="32" r="3.5" fill="url(#budG)" opacity="0.65"/>
-      <!-- Cluster upper branch end -->
-      <circle cx="4"   cy="72" r="5.5" fill="url(#budG)" opacity="0.82"/>
-      <circle cx="18"  cy="64" r="5"   fill="#ffc8d8" opacity="0.78"/>
-      <circle cx="10"  cy="52" r="4"   fill="#ffe0ea" opacity="0.68"/>
-      <circle cx="28"  cy="78" r="3.5" fill="url(#budG)" opacity="0.6"/>
-      <circle cx="20"  cy="82" r="3"   fill="#ffc8d8" opacity="0.55"/>
-      <!-- Middle branch cluster -->
-      <circle cx="66"  cy="202" r="4.5" fill="url(#budG)" opacity="0.7"/>
-      <circle cx="54"  cy="210" r="3.8" fill="#ffc8d8" opacity="0.62"/>
-      <circle cx="74"  cy="218" r="3.2" fill="#ffe0ea" opacity="0.55"/>
-      <!-- Loose petals floating near branches -->
-      <ellipse cx="88"  cy="12"  rx="4"   ry="2.8" fill="#ffb7c5" opacity="0.48" transform="rotate(-22 88 12)"/>
-      <ellipse cx="20"  cy="44"  rx="3.5" ry="2.4" fill="#ffb7c5" opacity="0.42" transform="rotate(16 20 44)"/>
-      <ellipse cx="48"  cy="260" rx="3"   ry="2"   fill="#ffb7c5" opacity="0.38" transform="rotate(-8 48 260)"/>
-      <ellipse cx="120" cy="390" rx="3.5" ry="2.5" fill="#ffb7c5" opacity="0.3" transform="rotate(12 120 390)"/>
-    </svg>
-
-    <!-- Center content -->
-    <div class="login-center">
-
-      <!-- Login header image -->
-      <img src="/static/login-header.jpg" alt="JLPT 單字王"
-           style="width:100%;max-width:520px;display:block;border-radius:4px 4px 0 0;">
-
-      <!-- Form panel (Japanese lacquer style) -->
-      <div class="login-panel">
-        <div class="lacquer-label">▸ 選擇已有帳號</div>
-        <div class="lacquer-select-wrap">
-          <select id="user-select" class="lacquer-select">
-            <option value="">── 選擇 ──</option>
-          </select>
-        </div>
-        <div class="lacquer-label">▸ 或輸入新名字</div>
-        <input id="name-input" class="lacquer-input" type="text"
-               placeholder="你的名字" maxlength="20" autocomplete="off">
-        <button id="btn-login" class="kamon-btn">開始挑戰 ✕</button>
+    <div class="login-image-wrap">
+      <img src="/static/login-full.jpg" alt="JLPT 單字王">
+      <div class="login-overlay-form">
+        <select id="user-select" class="overlay-select">
+          <option value=""></option>
+        </select>
+        <input id="name-input" class="overlay-input" type="text"
+               placeholder="" maxlength="20" autocomplete="off">
+        <button id="btn-login" class="overlay-btn">開始挑戰</button>
       </div>
-
     </div>
   </div>
 
@@ -1082,7 +1086,7 @@ function showScreen(name) {
 async function initLogin() {
   const users = await api('GET', '/api/users').catch(() => []);
   const sel = document.getElementById('user-select');
-  sel.innerHTML = '<option value="">── 選擇 ──</option>';
+  sel.innerHTML = '<option value=""></option>';
   users.forEach(u => {
     const opt = document.createElement('option');
     opt.value = u; opt.textContent = u;
