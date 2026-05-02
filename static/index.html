@@ -283,6 +283,73 @@ body::after {
   width: 140px; height: 65%; pointer-events: none; z-index: 1; opacity: 0.8;
 }
 
+/* Google login button — dark theme */
+.google-login-btn {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  width: 100%; padding: 13px 16px;
+  background: #0a0810; color: var(--primary);
+  font-size: 0.92rem; font-weight: 500; font-family: var(--font);
+  border: 1px solid rgba(201,168,76,0.38);
+  border-radius: 4px;
+  cursor: pointer; text-decoration: none;
+  transition: background 0.18s, border-color 0.18s;
+}
+.google-login-btn:hover { background: #111020; border-color: rgba(201,168,76,0.6); }
+
+.login-divider {
+  display: flex; align-items: center; gap: 10px;
+  color: #4a3618; font-size: 0.76rem;
+}
+.login-divider::before, .login-divider::after {
+  content: ''; flex: 1; height: 1px; background: rgba(201,168,76,0.22);
+}
+
+.trial-btn {
+  width: 100%; padding: 13px 16px;
+  background: transparent; color: var(--primary);
+  border: 1px solid rgba(201,168,76,0.38);
+  border-radius: 4px; font-size: 0.9rem; font-family: var(--font);
+  cursor: pointer; letter-spacing: 0.04em;
+  transition: background 0.18s;
+}
+.trial-btn:hover { background: var(--primary-light); }
+
+.trial-note {
+  font-size: 0.68rem; color: #4a3618;
+  text-align: center; line-height: 1.55;
+}
+
+.anon-badge {
+  display: inline-block; padding: 2px 8px;
+  background: rgba(230,126,34,0.2); color: #e67e22;
+  border: 1px solid rgba(230,126,34,0.4);
+  border-radius: 20px; font-size: 0.7rem; font-weight: 600;
+  vertical-align: middle; margin-left: 4px;
+}
+
+.mode-card-disabled {
+  opacity: 0.42; pointer-events: none; filter: grayscale(0.4);
+}
+
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.82);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-box {
+  background: var(--surface2); border-radius: var(--radius);
+  padding: 28px 24px; max-width: 320px; width: 90%;
+  border: 1px solid rgba(201,168,76,0.28);
+  box-shadow: var(--shadow);
+}
+.modal-title { font-size: 1.05rem; font-weight: 700; color: var(--primary); margin-bottom: 10px; }
+.modal-body  { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6; }
+.modal-actions { display: flex; flex-direction: column; gap: 8px; }
+.header-avatar {
+  width: 24px; height: 24px; border-radius: 50%;
+  object-fit: cover; vertical-align: middle; margin-right: 4px;
+}
+
 /* Center content stack */
 .login-center {
   position: relative; z-index: 2;
@@ -697,18 +764,20 @@ kbd {
       <img src="/static/login-header.jpg" alt="JLPT 單字王"
            style="width:100%;max-width:520px;display:block;border-radius:4px 4px 0 0;">
 
-      <!-- Form panel (Japanese lacquer style) -->
+      <!-- Auth panel -->
       <div class="login-panel">
-        <div class="lacquer-label">▸ 選擇已有帳號</div>
-        <div class="lacquer-select-wrap">
-          <select id="user-select" class="lacquer-select">
-            <option value="">── 選擇 ──</option>
-          </select>
-        </div>
-        <div class="lacquer-label">▸ 或輸入新名字</div>
-        <input id="name-input" class="lacquer-input" type="text"
-               placeholder="你的名字" maxlength="20" autocomplete="off">
-        <button id="btn-login" class="kamon-btn">開始挑戰 ✕</button>
+        <a href="/auth/google" class="google-login-btn">
+          <svg width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/>
+            <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/>
+            <path fill="#FBBC05" d="M11.69 28.18A13.37 13.37 0 0 1 10.75 24c0-1.45.25-2.86.69-4.18v-5.7H4.34A23.93 23.93 0 0 0 0 24c0 3.87.93 7.54 2.57 10.77l7.12-5.53.01-.06z"/>
+            <path fill="#EA4335" d="M24 9.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 3.29 29.93 1 24 1 15.4 1 7.96 5.93 4.34 13.12l7.35 5.7C13.42 13.62 18.27 9.75 24 9.75z"/>
+          </svg>
+          使用 Google 帳號登入
+        </a>
+        <div class="login-divider"><span>或</span></div>
+        <button class="trial-btn" onclick="loginAnonymous()">我要試用</button>
+        <div class="trial-note">試用版：學習 10 字 × 每日 2 次 ／ 測驗 15 字 × 每日 1 次<br>無測驗檢討功能 · 登入 Google 解鎖完整版</div>
       </div>
 
     </div>
@@ -971,6 +1040,18 @@ kbd {
 
 <div class="toast" id="toast"></div>
 
+  <!-- Upgrade prompt modal (shown when anonymous hits daily limit) -->
+  <div id="upgrade-modal" class="modal-overlay" style="display:none" onclick="closeUpgradeModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-title">⚠️ 今日試用次數已達上限</div>
+      <div class="modal-body">登入 Google 帳號即可解鎖無限次數的完整功能，包含測驗檢討模式與學習記錄保存。</div>
+      <div class="modal-actions">
+        <a href="/auth/google" class="btn btn-primary">🔑 登入 Google 帳號</a>
+        <button class="btn btn-ghost" onclick="closeUpgradeModal()">稍後再說</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 // =====================================================================
 // Sakura petals
@@ -993,20 +1074,20 @@ kbd {
 // =====================================================================
 // State
 // =====================================================================
+const STORAGE_KEY = 'jlpt_session_v3';
+
+// Global state
 const S = {
-  userId: null, userName: null, token: null, currentLevel: null,
-  allLevels: [],
-  // Study
-  studyQueue: [], studyTotal: 0, studyStats: { again:0, hard:0, good:0, easy:0 },
-  studyFlipped: false, studyCurrentWord: null,
-  reviewMode: false,        // true = 測驗檢討模式 (Easy removes from wrong list)
-  // Quiz
-  quizQueue: [], quizTotal: 50, quizYes: 0, quizNo: 0,
-  quizCurrentWord: null, quizWrongWords: [],   // wrong words from current quiz session
-  // Mastered / detail
+  userId: null, userName: null, userEmail: null,
+  userAvatar: null, isAnonymous: false,
+  studyRemaining: null, quizRemaining: null,
+  token: null, currentLevel: null, allLevels: [],
+  studyQueue: [], studyTotal: 0, studyStats: {},
+  studyFlipped: false, studyCurrentWord: null, reviewMode: false,
+  quizQueue: [], quizYes: 0, quizNo: 0,
+  quizCurrentWord: null, quizWrongWords: [],
   masteredWords: [], masteredDetailWord: null,
 };
-const STORAGE_KEY = 'jlpt_session_v2';
 
 // =====================================================================
 // Utils
@@ -1043,7 +1124,9 @@ function fmtNum(n) { return String(n).padStart(3, '0'); }
 function saveSession() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      userId: S.userId, userName: S.userName, token: S.token,
+      userId: S.userId, userName: S.userName, userAvatar: S.userAvatar,
+      userEmail: S.userEmail, isAnonymous: S.isAnonymous,
+      studyRemaining: S.studyRemaining, quizRemaining: S.quizRemaining,
       currentLevel: S.currentLevel,
       studyQueue: S.studyQueue, studyTotal: S.studyTotal,
       studyStats: S.studyStats, studyFlipped: S.studyFlipped,
@@ -1077,39 +1160,57 @@ function showScreen(name) {
 }
 
 // =====================================================================
-// Login
+// Login / Auth
 // =====================================================================
-async function initLogin() {
-  const users = await api('GET', '/api/users').catch(() => []);
-  const sel = document.getElementById('user-select');
-  sel.innerHTML = '<option value="">── 選擇 ──</option>';
-  users.forEach(u => {
-    const opt = document.createElement('option');
-    opt.value = u; opt.textContent = u;
-    sel.appendChild(opt);
-  });
-  sel.addEventListener('change', () => {
-    if (sel.value) document.getElementById('name-input').value = sel.value;
-  });
-}
-async function login() {
-  const name = document.getElementById('name-input').value.trim();
-  if (!name) { toast('請輸入名字'); return; }
+async function loginAnonymous() {
   try {
-    const r = await api('POST', '/api/login', { name });
-    S.userId = r.user_id; S.userName = r.name; S.token = r.token;
-    document.getElementById('header-user').textContent = name;
+    const r = await api('POST', '/api/login/anonymous');
+    applyUserInfo(r);
     await loadLevels();
     showScreen('level');
     saveSession();
   } catch (e) { toast('登入失敗：' + e.message); }
 }
+
+function applyUserInfo(me) {
+  S.userId        = me.user_id;
+  S.userName      = me.name;
+  S.userEmail     = me.email     ?? null;
+  S.userAvatar    = me.avatar_url ?? null;
+  S.isAnonymous   = me.is_anonymous ?? false;
+  S.studyRemaining = me.study_remaining ?? null;
+  S.quizRemaining  = me.quiz_remaining  ?? null;
+  updateHeaderUser();
+}
+
+function updateHeaderUser() {
+  const el = document.getElementById('header-user');
+  if (S.isAnonymous) {
+    el.innerHTML = `訪客<span class="anon-badge">試用中</span>`;
+  } else if (S.userAvatar) {
+    el.innerHTML = `<img class="header-avatar" src="${S.userAvatar}" alt=""> ${S.userName}`;
+  } else {
+    el.textContent = S.userName || '';
+  }
+}
+
 async function logout() {
   await api('POST', '/api/logout').catch(() => {});
   clearSession();
-  Object.assign(S, { userId: null, userName: null, token: null, currentLevel: null });
-  await initLogin();
+  Object.assign(S, {
+    userId: null, userName: null, userEmail: null,
+    userAvatar: null, isAnonymous: false,
+    studyRemaining: null, quizRemaining: null,
+    token: null, currentLevel: null,
+  });
   showScreen('login');
+}
+
+function showUpgradeModal() {
+  document.getElementById('upgrade-modal').style.display = 'flex';
+}
+function closeUpgradeModal() {
+  document.getElementById('upgrade-modal').style.display = 'none';
 }
 
 // =====================================================================
@@ -1143,19 +1244,25 @@ async function selectLevel(level) {
   document.getElementById('mode-level-title').textContent = `${level} 學習`;
   document.getElementById('mastered-mode-desc').textContent =
     `查看已標記學會的單字列表（${masteredIds.length} / ${levelInfo?.total || 0}）`;
-  // Load wrong word count
-  try {
-    const wrongWords = await api('GET', `/api/quiz/wrong-words/${S.userId}/${level}`);
-    const card = document.getElementById('review-mode-card');
-    if (wrongWords.length === 0) {
-      card.classList.add('disabled');
-      document.getElementById('review-mode-desc').textContent = '尚無錯誤單字記錄，先完成一次測驗吧！';
-    } else {
-      card.classList.remove('disabled');
-      document.getElementById('review-mode-desc').textContent =
-        `從 ${wrongWords.length} 個錯誤單字中隨機練習 20 個，按 Easy 可移除`;
-    }
-  } catch { }
+
+  const reviewCard = document.getElementById('review-mode-card');
+  if (S.isAnonymous) {
+    reviewCard.classList.add('mode-card-disabled');
+    document.getElementById('review-mode-desc').textContent = '登入 Google 帳號後解鎖';
+  } else {
+    reviewCard.classList.remove('mode-card-disabled');
+    try {
+      const wrongWords = await api('GET', `/api/quiz/wrong-words/${S.userId}/${level}`);
+      if (wrongWords.length === 0) {
+        reviewCard.classList.add('disabled');
+        document.getElementById('review-mode-desc').textContent = '尚無錯誤單字記錄，先完成一次測驗吧！';
+      } else {
+        reviewCard.classList.remove('disabled');
+        document.getElementById('review-mode-desc').textContent =
+          `從 ${wrongWords.length} 個錯誤單字中隨機練習 20 個，按 Easy 可移除`;
+      }
+    } catch { }
+  }
   showScreen('mode');
 }
 async function getMasteredIds(level) {
@@ -1176,15 +1283,20 @@ async function startStudy() {
   document.getElementById('study-hint').textContent = '按空白鍵或點擊卡片翻面';
   document.getElementById('srs-easy-btn').innerHTML = 'Easy<span class="srs-sub">4鍵</span>';
   try {
+    const excludeParam = S.isAnonymous ? '' : '&exclude_mastered=true';
     const words = await api('GET',
-      `/api/words/${S.currentLevel}?user_id=${S.userId}&exclude_mastered=true`);
+      `/api/words/${S.currentLevel}?user_id=${S.userId}${excludeParam}&mode=study`);
     if (!words.length) { toast('🎉 所有單字都已學會！'); showScreen('mode'); return; }
-    const batch = shuffle(words).slice(0, 20);
+    const limit = S.isAnonymous ? 10 : 20;
+    const batch = shuffle(words).slice(0, limit);
     S.studyQueue = batch; S.studyTotal = batch.length;
     S.studyStats = { again: 0, hard: 0, good: 0, easy: 0 };
     S.studyFlipped = false;
     saveSession(); renderStudyCard();
-  } catch (e) { toast('載入失敗：' + e.message); showScreen('mode'); }
+  } catch (e) {
+    if (e.message.includes('上限')) { showScreen('mode'); showUpgradeModal(); }
+    else { toast('載入失敗：' + e.message); showScreen('mode'); }
+  }
 }
 
 async function startReviewMode() {
@@ -1286,13 +1398,17 @@ async function startQuiz() {
   showScreen('quiz');
   document.getElementById('quiz-level-title').textContent = `${S.currentLevel} 測驗模式`;
   try {
-    const words = await api('GET', `/api/words/${S.currentLevel}`);
+    const words = await api('GET', `/api/words/${S.currentLevel}?mode=quiz`);
     if (!words.length) { toast('尚無單字資料'); showScreen('mode'); return; }
-    const batch = shuffle(words).slice(0, 50);
+    const limit = S.isAnonymous ? 15 : 50;
+    const batch = shuffle(words).slice(0, limit);
     S.quizQueue = batch; S.quizTotal = batch.length;
     S.quizYes = 0; S.quizNo = 0; S.quizWrongWords = [];
     saveSession(); renderQuizCard();
-  } catch (e) { toast('載入失敗：' + e.message); showScreen('mode'); }
+  } catch (e) {
+    if (e.message.includes('上限')) { showScreen('mode'); showUpgradeModal(); }
+    else { toast('載入失敗：' + e.message); showScreen('mode'); }
+  }
 }
 function renderQuizCard() {
   if (!S.quizQueue.length) { completeQuiz(); return; }
@@ -1558,38 +1674,34 @@ document.addEventListener('keydown', e => {
 // Boot
 // =====================================================================
 async function boot() {
-  const restored = loadSession();
-  await initLogin();
-  if (restored && S.userId) {
-    document.getElementById('header-user').textContent = S.userName;
-    document.getElementById('name-input').value = S.userName;
-    try {
-      const r = await api('POST', '/api/login', { name: S.userName });
-      S.userId = r.user_id; S.token = r.token;
-      await loadLevels();
-      if (currentScreen === 'study' && S.studyQueue?.length) {
-        showScreen('study');
-        document.getElementById('study-level-title').textContent =
-          S.reviewMode ? `${S.currentLevel} 檢討模式` : `${S.currentLevel} 學習模式`;
-        if (S.reviewMode) {
-          document.getElementById('study-hint').textContent = '點擊翻面，Easy 可移除錯誤記錄';
-          document.getElementById('srs-easy-btn').innerHTML = 'Easy<span class="srs-sub">移除</span>';
-        }
-        renderStudyCard();
-        if (S.studyFlipped) flipCard();
-      } else if (currentScreen === 'quiz' && S.quizQueue?.length) {
-        showScreen('quiz');
-        document.getElementById('quiz-level-title').textContent = `${S.currentLevel} 測驗模式`;
-        renderQuizCard();
-      } else {
-        showScreen('level');
+  loadSession();  // restore study/quiz state from localStorage
+  try {
+    const me = await api('GET', '/api/me');
+    applyUserInfo(me);
+    await loadLevels();
+    // Restore mid-session screen if applicable
+    if (currentScreen === 'study' && S.studyQueue?.length) {
+      showScreen('study');
+      document.getElementById('study-level-title').textContent =
+        S.reviewMode ? `${S.currentLevel} 檢討模式` : `${S.currentLevel} 學習模式`;
+      if (S.reviewMode) {
+        document.getElementById('study-hint').textContent = '點擊翻面，Easy 可移除錯誤記錄';
+        document.getElementById('srs-easy-btn').innerHTML = 'Easy<span class="srs-sub">移除</span>';
       }
-    } catch { showScreen('login'); }
-  } else {
+      renderStudyCard();
+      if (S.studyFlipped) flipCard();
+    } else if (currentScreen === 'quiz' && S.quizQueue?.length) {
+      showScreen('quiz');
+      document.getElementById('quiz-level-title').textContent = `${S.currentLevel} 測驗模式`;
+      renderQuizCard();
+    } else {
+      showScreen('level');
+    }
+  } catch {
+    // No valid session → show login
+    clearSession();
     showScreen('login');
   }
-  document.getElementById('btn-login').onclick = login;
-  document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 }
 
 const _showScreen = showScreen;

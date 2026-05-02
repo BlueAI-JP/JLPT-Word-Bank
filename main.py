@@ -1,6 +1,7 @@
 import os
 import secrets
 from contextlib import asynccontextmanager
+from datetime import date
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -8,10 +9,11 @@ PRODUCTION = os.getenv("PRODUCTION", "false").lower() == "true"
 PORT = int(os.getenv("PORT", "8000"))
 
 from fastapi import Cookie, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+import auth
 import database as db
 from data_loader import WordDataLoader
 
@@ -39,13 +41,37 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 # ---------------------------------------------------------------------------
-# Session helpers
+# Helpers
 # ---------------------------------------------------------------------------
 
 def _require_session(session_token: Optional[str]) -> int:
     if not session_token or session_token not in _sessions:
         raise HTTPException(status_code=401, detail="未登入")
     return _sessions[session_token]
+
+
+def _get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip
+    return request.client.host
+
+
+def _make_session(response: Response, user_id: int) -> str:
+    token = secrets.token_urlsafe(32)
+    _sessions[token] = user_id
+    response.set_cookie(
+        key="session_token",
+        value=token,
+        httponly=True,
+        samesite="strict",
+        secure=PRODUCTION,
+        max_age=86400 * 7,
+    )
+    return token
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +111,53 @@ async def index():
 
 
 # ---------------------------------------------------------------------------
-# Routes - Auth
+# Routes - Google SSO
+# ---------------------------------------------------------------------------
+
+@app.get("/auth/google")
+async def auth_google():
+    if not auth.GOOGLE_CLIENT_ID:
+        raise HTTPException(500, "Google OAuth 尚未設定（缺少 GOOGLE_CLIENT_ID）")
+    url = auth.build_auth_url()
+    return RedirectResponse(url)
+
+
+@app.get("/auth/google/callback")
+async def auth_google_callback(
+    request: Request,
+    response: Response,
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    if error:
+        return RedirectResponse("/?auth_error=" + error)
+    if not code or not state:
+        raise HTTPException(400, "缺少 OAuth 必要參數")
+    if not auth.validate_state(state):
+        raise HTTPException(400, "無效的 OAuth state，請重新登入")
+
+    try:
+        user_info = await auth.fetch_google_user(code)
+    except Exception as e:
+        raise HTTPException(502, f"Google 驗證失敗：{e}")
+
+    ip = _get_client_ip(request)
+    user_id = await db.get_or_create_google_user(
+        google_id=user_info["sub"],
+        name=user_info.get("name", ""),
+        email=user_info.get("email", ""),
+        avatar_url=user_info.get("picture", ""),
+        ip=ip,
+    )
+
+    redirect = RedirectResponse("/", status_code=302)
+    _make_session(redirect, user_id)
+    return redirect
+
+
+# ---------------------------------------------------------------------------
+# Routes - Auth (legacy + anonymous)
 # ---------------------------------------------------------------------------
 
 @app.get("/api/users")
@@ -95,29 +167,72 @@ async def list_users():
 
 @app.post("/api/login")
 async def login(req: LoginRequest, response: Response):
+    """Legacy name-based login (kept for backward compat)."""
     name = req.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="名字不能為空")
     user_id = await db.get_or_create_user(name)
-    token = secrets.token_urlsafe(32)
-    _sessions[token] = user_id
-    response.set_cookie(
-        key="session_token",
-        value=token,
-        httponly=True,
-        samesite="strict",
-        secure=PRODUCTION,
-        max_age=86400 * 7,
-    )
-    return {"user_id": user_id, "name": name, "token": token}
+    token = _make_session(response, user_id)
+    return {"user_id": user_id, "name": name, "token": token, "is_anonymous": False}
+
+
+@app.post("/api/login/anonymous")
+async def login_anonymous(request: Request, response: Response):
+    user_id = await db.get_anonymous_user_id()
+    ip = _get_client_ip(request)
+    today = date.today().isoformat()
+    usage = await db.get_anonymous_usage(ip, today)
+    token = _make_session(response, user_id)
+    return {
+        "user_id": user_id,
+        "name": "訪客",
+        "is_anonymous": True,
+        "token": token,
+        "study_remaining": max(0, db.ANON_STUDY_LIMIT - usage["study_count"]),
+        "quiz_remaining":  max(0, db.ANON_QUIZ_LIMIT  - usage["quiz_count"]),
+    }
 
 
 @app.post("/api/logout")
-async def logout(response: Response, session_token: Annotated[Optional[str], Cookie()] = None):
+async def logout(
+    response: Response,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
     if session_token and session_token in _sessions:
         del _sessions[session_token]
     response.delete_cookie("session_token")
     return {"ok": True}
+
+
+@app.get("/api/me")
+async def get_me(
+    request: Request,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    user_id = _require_session(session_token)
+    user = await db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(404, "使用者不存在")
+
+    result: dict = {
+        "user_id": user["id"],
+        "name": user["name"],
+        "email": user["email"],
+        "avatar_url": user["avatar_url"],
+        "is_anonymous": user["is_anonymous"],
+        "study_remaining": None,
+        "quiz_remaining": None,
+    }
+
+    if user["is_anonymous"]:
+        ip = _get_client_ip(request)
+        today = date.today().isoformat()
+        usage = await db.get_anonymous_usage(ip, today)
+        result["name"] = "訪客"
+        result["study_remaining"] = max(0, db.ANON_STUDY_LIMIT - usage["study_count"])
+        result["quiz_remaining"]  = max(0, db.ANON_QUIZ_LIMIT  - usage["quiz_count"])
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -132,14 +247,33 @@ async def get_levels():
 @app.get("/api/words/{level}")
 async def get_words(
     level: str,
+    request: Request,
     user_id: Optional[int] = None,
     exclude_mastered: bool = False,
+    mode: Optional[str] = None,           # "study" | "quiz" — for anonymous limit check
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
-    _require_session(session_token)
+    uid = _require_session(session_token)
     words = loader.get_words(level)
     if not words:
         raise HTTPException(status_code=404, detail=f"等級 {level} 尚無單字資料")
+
+    user = await db.get_user_by_id(uid)
+    is_anon = user and user["is_anonymous"]
+
+    if is_anon and mode in ("study", "quiz"):
+        ip = _get_client_ip(request)
+        today = date.today().isoformat()
+        usage = await db.get_anonymous_usage(ip, today)
+
+        if mode == "study" and usage["study_count"] >= db.ANON_STUDY_LIMIT:
+            raise HTTPException(403, "今日試用學習次數已達上限，請登入 Google 帳號繼續使用")
+        if mode == "quiz" and usage["quiz_count"] >= db.ANON_QUIZ_LIMIT:
+            raise HTTPException(403, "今日試用測驗次數已達上限，請登入 Google 帳號繼續使用")
+
+        await db.increment_anonymous_usage(ip, today, mode)
+        # Word count is limited on the frontend; backend returns full list
+        return words
 
     if exclude_mastered and user_id is not None:
         mastered = await db.get_mastered_word_ids(user_id, level)
@@ -298,7 +432,10 @@ async def get_wrong_words(
     level: str,
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
-    _require_session(session_token)
+    uid = _require_session(session_token)
+    user = await db.get_user_by_id(uid)
+    if user and user["is_anonymous"]:
+        raise HTTPException(403, "試用帳號無法使用測驗檢討功能，請登入 Google 帳號")
     wrong_ids = await db.get_quiz_wrong_word_ids(user_id, level)
     all_words = loader.get_words(level)
     return [w for w in all_words if w["id"] in wrong_ids]
