@@ -1269,6 +1269,11 @@ kbd {
         <button class="btn btn-primary btn-sm" onclick="adminAddEmail()">新增</button>
       </div>
       <div id="admin-emails-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px">📧 SMTP 設定驗證</div>
+        <button class="btn btn-ghost btn-sm" onclick="adminTestEmail()">發送測試 Email</button>
+        <div id="admin-email-status" style="font-size:0.75rem;color:var(--text-muted);margin-top:6px"></div>
+      </div>
     </div>
   </div>
 
@@ -2307,6 +2312,19 @@ async function adminAddEmail() {
     toast('✓ 已新增管理者');
     adminLoadEmails();
   } catch (e) { toast('新增失敗：' + e.message); }
+}
+
+async function adminTestEmail() {
+  const statusEl = document.getElementById('admin-email-status');
+  statusEl.textContent = '發送中…';
+  try {
+    const r = await api('POST', '/api/admin/test-email');
+    statusEl.style.color = 'var(--success)';
+    statusEl.textContent = '✓ ' + r.message;
+  } catch (e) {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = '✗ ' + e.message;
+  }
 }
 
 async function adminRemoveEmail(email) {

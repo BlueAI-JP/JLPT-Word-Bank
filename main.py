@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import secrets
 import smtplib
@@ -13,9 +14,11 @@ from typing import Annotated, Optional
 
 PRODUCTION = os.getenv("PRODUCTION", "false").lower() == "true"
 PORT = int(os.getenv("PORT", "8000"))
-GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
 
-from fastapi import Cookie, FastAPI, HTTPException, Request, Response
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("jlpt")
+
+from fastapi import BackgroundTasks, Cookie, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -136,7 +139,12 @@ def _make_session(response: Response, user_id: int) -> str:
 # Email notification
 # ---------------------------------------------------------------------------
 
-def _send_email_sync(to_emails: list[str], subject: str, body: str) -> None:
+def _gmail_password() -> str:
+    """Read GMAIL_APP_PASSWORD at call time so systemd EnvironmentFile changes take effect."""
+    return os.environ.get("GMAIL_APP_PASSWORD", "")
+
+
+def _send_email_sync(to_emails: list[str], subject: str, body: str, password: str) -> None:
     """Send email via Gmail SMTP (blocking — call via asyncio.to_thread)."""
     msg = MIMEMultipart()
     msg["From"]    = db.DEFAULT_ADMIN
@@ -146,33 +154,42 @@ def _send_email_sync(to_emails: list[str], subject: str, body: str) -> None:
     with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
         smtp.ehlo()
         smtp.starttls()
-        smtp.login(db.DEFAULT_ADMIN, GMAIL_APP_PASSWORD)
+        smtp.login(db.DEFAULT_ADMIN, password)
         smtp.sendmail(db.DEFAULT_ADMIN, to_emails, msg.as_string())
+    logger.info("Email sent to: %s", to_emails)
+
+
+async def _send_notification(subject: str, body: str) -> None:
+    """Send an email to all admin accounts. Logs errors instead of silently swallowing."""
+    password = _gmail_password()
+    if not password:
+        logger.warning("GMAIL_APP_PASSWORD not set — skipping email notification")
+        return
+    admin_emails = await db.get_admin_emails()
+    if not admin_emails:
+        logger.warning("No admin emails configured — skipping email notification")
+        return
+    try:
+        await asyncio.to_thread(_send_email_sync, admin_emails, subject, body, password)
+    except Exception as e:
+        logger.error("Email notification failed: %s", e)
 
 
 async def _notify_new_user(user_info: dict, ip: str) -> None:
-    """Fire-and-forget: email all admins about a new user registration."""
-    if not GMAIL_APP_PASSWORD:
-        return
-    try:
-        admin_emails = await db.get_admin_emails()
-        if not admin_emails:
-            return
-        email_addr = user_info.get("email", "（未知）")
-        subject = f"[單字王通知] - 新使用者登入 - {email_addr}"
-        body = (
-            f"新使用者登入通知\n"
-            f"{'=' * 40}\n"
-            f"Email     : {email_addr}\n"
-            f"姓名      : {user_info.get('name', '')}\n"
-            f"Google ID : {user_info.get('sub', '')}\n"
-            f"頭像 URL  : {user_info.get('picture', '')}\n"
-            f"登入 IP   : {ip}\n"
-            f"登入時間  : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-        )
-        await asyncio.to_thread(_send_email_sync, admin_emails, subject, body)
-    except Exception:
-        pass  # Email failure must never block the login flow
+    """Background task: notify all admins when a new user registers."""
+    email_addr = user_info.get("email", "（未知）")
+    subject = f"[單字王通知] - 新使用者登入 - {email_addr}"
+    body = (
+        f"新使用者登入通知\n"
+        f"{'=' * 40}\n"
+        f"Email     : {email_addr}\n"
+        f"姓名      : {user_info.get('name', '')}\n"
+        f"Google ID : {user_info.get('sub', '')}\n"
+        f"頭像 URL  : {user_info.get('picture', '')}\n"
+        f"登入 IP   : {ip}\n"
+        f"登入時間  : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    )
+    await _send_notification(subject, body)
 
 
 # ---------------------------------------------------------------------------
@@ -248,6 +265,7 @@ async def auth_google():
 async def auth_google_callback(
     request: Request,
     response: Response,
+    background_tasks: BackgroundTasks,
     code: Optional[str] = None,
     state: Optional[str] = None,
     error: Optional[str] = None,
@@ -278,7 +296,8 @@ async def auth_google_callback(
 
     # Non-blocking email notification for new registrations
     if is_new:
-        asyncio.create_task(_notify_new_user(user_info, ip))
+        logger.info("New user registered: %s", user_info.get("email"))
+        background_tasks.add_task(_notify_new_user, user_info, ip)
 
     redirect = RedirectResponse("/", status_code=302)
     _make_session(redirect, user_id)
@@ -730,6 +749,28 @@ async def admin_add_admin_email(
         raise HTTPException(400, "請輸入有效的 Email")
     await db.add_admin_email(email)
     return {"ok": True}
+
+
+@app.post("/api/admin/test-email")
+async def admin_test_email(
+    background_tasks: BackgroundTasks,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    """Send a test email to all admins to verify SMTP configuration."""
+    admin_uid = await _require_admin(session_token)
+    user = await db.get_user_by_id(admin_uid)
+    password = _gmail_password()
+    if not password:
+        raise HTTPException(400, "GMAIL_APP_PASSWORD 尚未設定，請在 VPS 的 /etc/jlpt.env 中設定")
+    subject = "[單字王通知] - SMTP 測試信"
+    body = (
+        f"這是一封測試信件，確認 SMTP 設定正常。\n"
+        f"{'=' * 40}\n"
+        f"發送時間 : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"觸發者   : {user.get('email', '')}\n"
+    )
+    background_tasks.add_task(_send_notification, subject, body)
+    return {"ok": True, "message": "測試信已排入發送佇列，請檢查收件匣"}
 
 
 @app.delete("/api/admin/admins/{email:path}")
