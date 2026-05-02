@@ -13,7 +13,7 @@ git reset --hard origin/master
 
 echo "[deploy] 更新 Python 依賴..."
 "$APP_DIR/.venv/bin/pip" install --quiet \
-    "fastapi[standard]" openpyxl aiosqlite uvicorn
+    "fastapi[standard]" openpyxl aiosqlite uvicorn httpx
 
 echo "[deploy] 重啟服務..."
 sudo systemctl restart jlpt
