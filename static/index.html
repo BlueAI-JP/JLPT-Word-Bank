@@ -1294,6 +1294,7 @@ async function getMasteredIds(level) {
 async function startStudy() {
   if (!S.currentLevel) return;
   S.reviewMode = false;
+  clearAudioCache();
   showScreen('study');
   document.getElementById('study-level-title').textContent = `${S.currentLevel} 學習模式`;
   document.getElementById('study-hint').textContent = '按空白鍵或點擊卡片翻面';
@@ -1349,6 +1350,7 @@ function renderStudyCard() {
   document.getElementById('srs-btns').style.display = 'none';
   document.getElementById('flip-hint').style.display = '';
   updateStudyProgress(); saveSession();
+  preloadNext(S.studyQueue);   // 預載接下來 3 個單字音訊
 }
 function updateStudyProgress() {
   const remaining = S.studyQueue.length, total = S.studyTotal;
@@ -1411,6 +1413,7 @@ async function completeStudy() {
 // =====================================================================
 async function startQuiz() {
   if (!S.currentLevel) return;
+  clearAudioCache();
   showScreen('quiz');
   document.getElementById('quiz-level-title').textContent = `${S.currentLevel} 測驗模式`;
   try {
@@ -1433,6 +1436,7 @@ function renderQuizCard() {
   document.getElementById('quiz-word-num').textContent = `#${fmtNum(word.id)}`;
   document.getElementById('quiz-word').textContent = word.word;
   updateQuizProgress(); saveSession();
+  preloadNext(S.quizQueue);    // 預載接下來 3 個單字音訊
 }
 function updateQuizProgress() {
   const remaining = S.quizQueue.length, total = S.quizTotal;
@@ -1527,14 +1531,36 @@ function showQuizWrongDetail(word) {
 }
 
 // =====================================================================
-// Audio
+// Audio (with preload cache)
 // =====================================================================
+const _audioCache = new Map(); // `${level}/${wordId}` → HTMLAudioElement
 let currentAudio = null;
+
+function _preload(level, wordId) {
+  const key = `${level}/${wordId}`;
+  if (_audioCache.has(key)) return;
+  const a = new Audio(`/api/audio/${level}/${wordId}`);
+  a.preload = 'auto';
+  _audioCache.set(key, a);
+}
+
+function preloadNext(queue, n = 3) {
+  if (!S.currentLevel) return;
+  queue.slice(0, n).forEach(w => _preload(S.currentLevel, w.id));
+}
+
+function clearAudioCache() {
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  _audioCache.clear();
+}
+
 function playAudio() { const w = S.studyCurrentWord; if (w) playWordAudio(S.currentLevel, w.id); }
 function playQuizAudio() { const w = S.quizCurrentWord; if (w) playWordAudio(S.currentLevel, w.id); }
 function playWordAudio(level, wordId) {
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-  const audio = new Audio(`/api/audio/${level}/${wordId}`);
+  const key = `${level}/${wordId}`;
+  const audio = _audioCache.get(key) ?? new Audio(`/api/audio/${level}/${wordId}`);
+  audio.currentTime = 0;
   currentAudio = audio;
   audio.play().catch(() => toast('音檔播放失敗'));
 }
