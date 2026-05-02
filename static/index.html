@@ -680,6 +680,8 @@ kbd {
     flex: 1; overflow: hidden;
   }
   .mode-card { flex-shrink: 1; }
+  /* VIP 全書閱讀卡佔滿整行 */
+  #book-mode-card { grid-column: 1 / -1; }
   .mode-icon { font-size: 1.8rem; }
   .mode-title { font-size: 1.05rem; }
   .mode-desc { font-size: 0.82rem; }
@@ -761,6 +763,39 @@ kbd {
   font-size: 0.6rem; color: #4a3618; text-align: center;
   letter-spacing: 0.08em; opacity: 0.75; user-select: none;
 }
+
+/* ===================== VIP Badge ===================== */
+.vip-badge {
+  display: inline-block; padding: 1px 7px; border-radius: 20px;
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em;
+  background: linear-gradient(135deg, #c9a84c, #e8c878);
+  color: #0a0a10; vertical-align: middle; margin-left: 5px;
+  box-shadow: 0 0 8px rgba(201,168,76,0.4);
+}
+.admin-badge-vip {
+  display: inline-block; padding: 1px 6px; border-radius: 4px;
+  font-size: 0.68rem; font-weight: 700;
+  background: rgba(201,168,76,0.2); color: var(--primary);
+}
+.btn-setvip {
+  font-size: 0.72rem; padding: 3px 8px;
+  background: rgba(201,168,76,0.15); color: var(--primary);
+  border: 1px solid rgba(201,168,76,0.4); border-radius: 6px; cursor: pointer;
+}
+.btn-unsetvip {
+  font-size: 0.72rem; padding: 3px 8px;
+  background: rgba(201,168,76,0.5); color: #0a0810;
+  border: none; border-radius: 6px; cursor: pointer;
+}
+
+/* ===================== Book Reading Mode ===================== */
+.book-btns {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex-shrink: 0;
+}
+.book-reread { background: var(--btn-hard); color: #fff;
+  font-size: 1.05rem; font-weight: 800; box-shadow: 0 2px 16px rgba(230,126,34,0.4); }
+.book-read   { background: var(--btn-easy); color: #fff;
+  font-size: 1.05rem; font-weight: 800; box-shadow: 0 2px 16px rgba(41,128,185,0.4); }
 </style>
 </head>
 <body>
@@ -880,7 +915,7 @@ kbd {
         <div class="login-divider"><span>或</span></div>
         <button class="trial-btn" onclick="loginAnonymous()">我要試用</button>
         <div class="trial-note">試用版：學習 10 字 × 每日 2 次 ／ 測驗 15 字 × 每日 1 次<br>無測驗檢討功能 · 登入 Google 解鎖完整版</div>
-        <div class="version-badge">V1.10 &nbsp;·&nbsp; 20260502</div>
+        <div class="version-badge">V1.20 &nbsp;·&nbsp; 20260502 &nbsp;·&nbsp; © vividuck.com</div>
       </div>
 
     </div>
@@ -898,7 +933,7 @@ kbd {
     <div class="level-grid" id="level-grid"></div>
     <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px;">
       <button class="btn btn-outline btn-full" onclick="showScreen('progress')">📊 學習記錄</button>
-      <div class="version-badge">V1.10 &nbsp;·&nbsp; 20260502</div>
+      <div class="version-badge">V1.20 &nbsp;·&nbsp; 20260502 &nbsp;·&nbsp; © vividuck.com</div>
     </div>
   </div>
 
@@ -928,6 +963,11 @@ kbd {
         <div class="mode-icon">⭐</div>
         <div class="mode-title">已學會單字</div>
         <div class="mode-desc" id="mastered-mode-desc">查看已標記學會的單字列表</div>
+      </div>
+      <div class="mode-card" id="book-mode-card" style="display:none" onclick="startBookMode()">
+        <div class="mode-icon">📖</div>
+        <div class="mode-title">全書閱讀模式<span class="vip-badge">VIP</span></div>
+        <div class="mode-desc" id="book-mode-desc">依序閱讀本級別全部單字，支援自動朗讀，隨時儲存進度</div>
       </div>
     </div>
   </div>
@@ -1110,6 +1150,45 @@ kbd {
     </div>
   </div>
 
+  <!-- ===== Book Reading Screen (VIP) ===== -->
+  <div id="screen-book" class="screen">
+    <div class="header">
+      <button class="btn btn-ghost btn-sm" onclick="confirmQuitBook()">✕ 結束</button>
+      <div class="header-title" id="book-level-title">全書閱讀</div>
+      <button class="btn btn-ghost btn-sm" onclick="resetBookMode()">🔄 重置</button>
+    </div>
+    <div class="progress-area">
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="book-progress-fill" style="width:0%"></div></div>
+      <div class="progress-info">
+        <span id="book-progress-text">閱讀列表剩餘 0 / 0</span>
+        <span id="book-autoread-indicator" style="color:var(--primary);font-size:0.72rem"></span>
+      </div>
+    </div>
+    <div class="card-wrap">
+      <div class="card-face" style="width:100%;max-width:520px" id="book-card">
+        <div class="word-num-badge" id="book-word-num">#000</div>
+        <div class="card-back-content" id="book-card-content"></div>
+      </div>
+    </div>
+    <div class="book-btns">
+      <button class="btn srs-btn book-reread" onclick="bookAction('reread')">🔁 再讀</button>
+      <button class="btn srs-btn book-read"   onclick="bookAction('read')">✓ 已讀</button>
+    </div>
+  </div>
+
+  <!-- ===== Book Complete Screen ===== -->
+  <div id="screen-book-complete" class="screen">
+    <div class="completion-screen">
+      <div class="completion-emoji">📚</div>
+      <div class="completion-title">恭喜您已經讀完全書！</div>
+      <div class="completion-sub" id="book-complete-sub"></div>
+      <div class="completion-btns">
+        <button class="btn btn-primary btn-full" onclick="resetAndRestartBook()">🔄 重置並重新閱讀</button>
+        <button class="btn btn-outline btn-full" onclick="showScreen('level')">返回主頁</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== Review Complete Screen ===== -->
   <div id="screen-review-complete" class="screen">
     <div class="completion-screen">
@@ -1164,11 +1243,11 @@ kbd {
             <tr>
               <th>名稱 / Email</th>
               <th>登入</th><th>練習</th><th>測驗</th><th>學會</th><th>最高分</th>
-              <th>最近登入</th><th>IP</th><th>狀態</th><th>操作</th>
+              <th>最近登入</th><th>IP</th><th>狀態</th><th>VIP</th><th>操作</th>
             </tr>
           </thead>
           <tbody id="admin-users-tbody">
-            <tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-muted)">載入中…</td></tr>
+            <tr><td colspan="11" style="text-align:center;padding:20px;color:var(--text-muted)">載入中…</td></tr>
           </tbody>
         </table>
       </div>
@@ -1181,6 +1260,19 @@ kbd {
         <button class="btn btn-primary btn-sm" onclick="adminAddEmail()">新增</button>
       </div>
       <div id="admin-emails-list" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+  </div>
+
+  <!-- Book auto-read dialog -->
+  <div id="book-autoread-modal" class="modal-overlay" style="display:none">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-title">📖 全書閱讀模式</div>
+      <div class="modal-body">是否開啟自動朗讀？<br>開啟後進入每張單字卡時會自動播放發音。</div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="startBookModeWithAutoRead(true)">🔊 開啟自動朗讀</button>
+        <button class="btn btn-outline" onclick="startBookModeWithAutoRead(false)">繼續（靜音）</button>
+        <button class="btn btn-ghost"   onclick="document.getElementById('book-autoread-modal').style.display='none'">取消</button>
+      </div>
     </div>
   </div>
 
@@ -1223,7 +1315,7 @@ const STORAGE_KEY = 'jlpt_session_v3';
 // Global state
 const S = {
   userId: null, userName: null, userEmail: null,
-  userAvatar: null, isAnonymous: false, isAdmin: false,
+  userAvatar: null, isAnonymous: false, isAdmin: false, isVip: false,
   studyRemaining: null, quizRemaining: null,
   token: null, currentLevel: null, allLevels: [],
   studyQueue: [], studyTotal: 0, studyStats: {},
@@ -1231,6 +1323,8 @@ const S = {
   quizQueue: [], quizYes: 0, quizNo: 0,
   quizCurrentWord: null, quizWrongWords: [],
   masteredWords: [], masteredDetailWord: null,
+  // Book reading mode (VIP)
+  bookQueue: [], bookTotal: 0, bookAutoRead: false,
 };
 
 // =====================================================================
@@ -1336,6 +1430,7 @@ function applyUserInfo(me) {
   S.userAvatar    = me.avatar_url ?? null;
   S.isAnonymous   = me.is_anonymous ?? false;
   S.isAdmin       = me.is_admin     ?? false;
+  S.isVip         = me.is_vip       ?? false;
   S.studyRemaining = me.study_remaining ?? null;
   S.quizRemaining  = me.quiz_remaining  ?? null;
   updateHeaderUser();
@@ -1403,6 +1498,10 @@ async function selectLevel(level) {
   document.getElementById('mode-level-title').textContent = `${level} 學習`;
   document.getElementById('mastered-mode-desc').textContent = '查看已標記學會的單字列表';
   showScreen('mode');
+
+  // VIP 全書閱讀卡顯示控制
+  const bookCard = document.getElementById('book-mode-card');
+  if (bookCard) bookCard.style.display = S.isVip ? '' : 'none';
 
   // 兩個 API 並行，切換後背景更新卡片資訊
   const reviewCard = document.getElementById('review-mode-card');
@@ -1856,6 +1955,11 @@ document.addEventListener('keydown', e => {
     if (key === 'y') quizAction(true);
     else if (key === 'n') quizAction(false);
     else if (key === 'enter') { e.preventDefault(); playQuizAudio(); }
+  } else if (currentScreen === 'book') {
+    if (key === 'arrowright' || key === 'd') bookAction('read');
+    else if (key === 'arrowleft'  || key === 'a') bookAction('reread');
+    else if (key === 'enter') { e.preventDefault();
+      const w = S.bookQueue[0]; if (w) playWordAudio(S.currentLevel, w.id); }
   }
 });
 
@@ -1914,6 +2018,142 @@ window.showScreen = function(name) {
 };
 
 // =====================================================================
+// Book Reading Mode (VIP)
+// =====================================================================
+function startBookMode() {
+  if (!S.currentLevel || !S.isVip) return;
+  document.getElementById('book-autoread-modal').style.display = 'flex';
+}
+
+async function startBookModeWithAutoRead(autoRead) {
+  document.getElementById('book-autoread-modal').style.display = 'none';
+  S.bookAutoRead = autoRead;
+  clearAudioCache();
+  _showScreen('book');
+  document.getElementById('book-level-title').textContent = `${S.currentLevel} 全書閱讀`;
+  document.getElementById('book-autoread-indicator').textContent = autoRead ? '🔊 自動朗讀 ON' : '';
+
+  try {
+    // 取得本級別全部單字（不限數量，不排除已學）
+    const [allWords, progress] = await Promise.all([
+      api('GET', `/api/words/${S.currentLevel}`),
+      api('GET', `/api/book/${S.currentLevel}/progress`),
+    ]);
+
+    // 建立 id → word 對照表
+    const wordMap = {};
+    allWords.forEach(w => { wordMap[w.id] = w; });
+
+    if (!progress.initialized) {
+      // 首次進入：依單字編號排序初始化佇列
+      const sortedWords = [...allWords].sort((a, b) => a.id - b.id);
+      S.bookQueue = sortedWords;
+      S.bookTotal = sortedWords.length;
+      // 儲存初始進度
+      await api('POST', `/api/book/${S.currentLevel}/progress`,
+        { queue: sortedWords.map(w => w.id) }).catch(() => {});
+    } else if (!progress.queue.length) {
+      // 佇列已讀完
+      S.bookTotal = progress.total;
+      _showBookComplete();
+      return;
+    } else {
+      // 恢復上次進度
+      S.bookQueue = progress.queue.map(id => wordMap[id]).filter(Boolean);
+      S.bookTotal = progress.total;
+    }
+
+    renderBookCard();
+  } catch (e) {
+    toast('載入失敗：' + e.message);
+    showScreen('mode');
+  }
+}
+
+function renderBookCard() {
+  if (!S.bookQueue.length) {
+    _saveBookProgress().then(() => _showBookComplete());
+    return;
+  }
+  const word = S.bookQueue[0];
+  document.getElementById('book-word-num').textContent = `#${fmtNum(word.id)}`;
+  document.getElementById('book-card-content').innerHTML = `
+    <div class="back-word-row">
+      <span class="back-word">${word.word}</span>
+      <span class="back-reading">(${word.reading || ''})</span>
+      <button class="btn-speaker" onclick="playWordAudio('${S.currentLevel}', ${word.id})">🔊</button>
+    </div>
+    <span class="back-pos">${word.pos || ''}</span>
+    <div class="divider"></div>
+    <div class="back-zh">${word.zh || ''}</div>
+    <div class="back-example">${word.example || ''}</div>
+    <div class="back-example-zh">${word.example_zh || ''}</div>
+  `;
+  _updateBookProgress();
+  preloadNext(S.bookQueue);
+  if (S.bookAutoRead) playWordAudio(S.currentLevel, word.id);
+}
+
+function _updateBookProgress() {
+  const remaining = S.bookQueue.length, total = S.bookTotal;
+  const pct = total ? ((total - remaining) / total * 100) : 0;
+  document.getElementById('book-progress-fill').style.width = pct + '%';
+  document.getElementById('book-progress-text').textContent =
+    `閱讀列表剩餘 ${remaining} / ${total}`;
+}
+
+function bookAction(action) {
+  if (currentScreen !== 'book' || !S.bookQueue.length) return;
+  const word = S.bookQueue.shift();
+  if (action === 'reread') {
+    S.bookQueue.push(word);   // 插入佇列末尾
+  }
+  // 'read' — 直接移除（已 shift）
+  _scheduleBookSave();
+  renderBookCard();
+}
+
+let _bookSaveTimer = null;
+function _scheduleBookSave() {
+  if (_bookSaveTimer) clearTimeout(_bookSaveTimer);
+  _bookSaveTimer = setTimeout(() => { _saveBookProgress(); _bookSaveTimer = null; }, 1500);
+}
+
+async function _saveBookProgress() {
+  if (!S.isVip || !S.currentLevel) return;
+  await api('POST', `/api/book/${S.currentLevel}/progress`,
+    { queue: S.bookQueue.map(w => w.id) }).catch(() => {});
+}
+
+function _showBookComplete() {
+  document.getElementById('book-complete-sub').textContent =
+    `您已讀完 ${S.currentLevel} 全部 ${S.bookTotal} 個單字！`;
+  _showScreen('book-complete');
+}
+
+function confirmQuitBook() {
+  _saveBookProgress();   // 離開前儲存進度
+  showScreen('mode');
+}
+
+async function resetBookMode() {
+  if (!confirm(`確定要重置 ${S.currentLevel} 的全書閱讀進度嗎？所有已讀記錄將清除。`)) return;
+  try {
+    await api('DELETE', `/api/book/${S.currentLevel}/progress`);
+    toast('✓ 已重置閱讀進度');
+    await startBookModeWithAutoRead(S.bookAutoRead);
+  } catch (e) { toast('重置失敗：' + e.message); }
+}
+
+async function resetAndRestartBook() {
+  try {
+    await api('DELETE', `/api/book/${S.currentLevel}/progress`);
+    document.getElementById('book-autoread-modal').style.display = 'flex';
+    _showScreen('mode');  // 先返回 mode，讓 modal 出現
+  } catch (e) { toast('重置失敗：' + e.message); }
+}
+
+// =====================================================================
 // Admin
 // =====================================================================
 function showAdmin() {
@@ -1932,12 +2172,12 @@ function adminSwitchTab(tab) {
 
 async function adminLoadUsers() {
   const tbody = document.getElementById('admin-users-tbody');
-  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-muted)">載入中…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--text-muted)">載入中…</td></tr>';
   try {
     const users = await api('GET', '/api/admin/users');
     tbody.innerHTML = '';
     if (!users.length) {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-muted)">尚無使用者記錄</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--text-muted)">尚無使用者記錄</td></tr>';
       return;
     }
     users.forEach(u => {
@@ -1959,17 +2199,25 @@ async function adminLoadUsers() {
         <td>${u.is_banned
           ? '<span class="admin-badge-banned">封禁</span>'
           : '<span class="admin-badge-active">正常</span>'}</td>
-        <td>${isSelf
+        <td>${u.is_vip
+          ? `<span class="admin-badge-vip">VIP</span>`
+          : '<span style="color:var(--text-muted);font-size:0.7rem">—</span>'}</td>
+        <td style="display:flex;flex-direction:column;gap:3px">${isSelf
           ? '<span style="font-size:0.7rem;color:var(--text-muted)">（自己）</span>'
-          : u.is_banned
-            ? `<button class="btn-unban" onclick="adminUnbanUser(${u.id})">解封</button>`
-            : `<button class="btn-ban"   onclick="adminBanUser(${u.id},'${u.name.replace(/'/g,"\\'")}')">封禁</button>`
+          : `${u.is_banned
+              ? `<button class="btn-unban" onclick="adminUnbanUser(${u.id})">解封</button>`
+              : `<button class="btn-ban"   onclick="adminBanUser(${u.id},'${u.name.replace(/'/g,"\\'")}')">封禁</button>`
+            }
+             ${u.is_vip
+              ? `<button class="btn-unsetvip" onclick="adminSetVip(${u.id},false)">取消VIP</button>`
+              : `<button class="btn-setvip"   onclick="adminSetVip(${u.id},true)">設為VIP</button>`
+            }`
         }</td>
       `;
       tbody.appendChild(tr);
     });
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:20px;color:#e74c3c">載入失敗：${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:20px;color:#e74c3c">載入失敗：${e.message}</td></tr>`;
   }
 }
 
@@ -1990,6 +2238,20 @@ async function adminUnbanUser(userId) {
     toast('✓ 已解封');
     adminLoadUsers();
   } catch (e) { toast('解封失敗：' + e.message); }
+}
+
+async function adminSetVip(userId, isVip) {
+  const action = isVip ? '設為 VIP' : '取消 VIP';
+  if (!confirm(`確定要${action}此使用者嗎？`)) return;
+  try {
+    if (isVip) {
+      await api('POST', `/api/admin/users/${userId}/vip`);
+    } else {
+      await api('DELETE', `/api/admin/users/${userId}/vip`);
+    }
+    toast(`✓ 已${action}`);
+    adminLoadUsers();
+  } catch (e) { toast(`${action}失敗：` + e.message); }
 }
 
 async function adminLoadEmails() {

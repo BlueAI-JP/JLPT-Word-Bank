@@ -1,15 +1,22 @@
+import asyncio
 import os
 import secrets
+import smtplib
+from collections import defaultdict
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
+from time import monotonic
 from typing import Annotated, Optional
 
 PRODUCTION = os.getenv("PRODUCTION", "false").lower() == "true"
 PORT = int(os.getenv("PORT", "8000"))
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
 
 from fastapi import Cookie, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -41,6 +48,32 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 # ---------------------------------------------------------------------------
+# Anti-scraping middleware (rate limit on word/audio endpoints)
+# ---------------------------------------------------------------------------
+
+_ip_timestamps: dict[str, list[float]] = defaultdict(list)
+RATE_WINDOW   = 60    # seconds
+RATE_MAX_REQS = 300   # max requests per IP per window on protected paths
+_PROTECTED    = ("/api/audio/", "/api/words/")
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    path = request.url.path
+    if any(path.startswith(p) for p in _PROTECTED):
+        ip  = _get_client_ip(request)
+        now = monotonic()
+        ts  = _ip_timestamps[ip]
+        cutoff = now - RATE_WINDOW
+        # Prune old entries
+        _ip_timestamps[ip] = [t for t in ts if t > cutoff]
+        _ip_timestamps[ip].append(now)
+        if len(_ip_timestamps[ip]) > RATE_MAX_REQS:
+            return PlainTextResponse("Too Many Requests", status_code=429)
+    return await call_next(request)
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -69,6 +102,15 @@ async def _require_admin(session_token: Optional[str]) -> int:
     return user_id
 
 
+async def _require_vip(session_token: Optional[str]) -> int:
+    """Validate session and confirm the user is VIP. Returns user_id."""
+    user_id = _require_session(session_token)
+    user = await db.get_user_by_id(user_id)
+    if not user or not user.get("is_vip"):
+        raise HTTPException(status_code=403, detail="此功能僅限 VIP 使用者")
+    return user_id
+
+
 def _make_session(response: Response, user_id: int) -> str:
     token = secrets.token_urlsafe(32)
     _sessions[token] = user_id
@@ -81,6 +123,49 @@ def _make_session(response: Response, user_id: int) -> str:
         max_age=86400 * 7,
     )
     return token
+
+
+# ---------------------------------------------------------------------------
+# Email notification
+# ---------------------------------------------------------------------------
+
+def _send_email_sync(to_emails: list[str], subject: str, body: str) -> None:
+    """Send email via Gmail SMTP (blocking — call via asyncio.to_thread)."""
+    msg = MIMEMultipart()
+    msg["From"]    = db.DEFAULT_ADMIN
+    msg["To"]      = ", ".join(to_emails)
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain", "utf-8"))
+    with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.login(db.DEFAULT_ADMIN, GMAIL_APP_PASSWORD)
+        smtp.sendmail(db.DEFAULT_ADMIN, to_emails, msg.as_string())
+
+
+async def _notify_new_user(user_info: dict, ip: str) -> None:
+    """Fire-and-forget: email all admins about a new user registration."""
+    if not GMAIL_APP_PASSWORD:
+        return
+    try:
+        admin_emails = await db.get_admin_emails()
+        if not admin_emails:
+            return
+        email_addr = user_info.get("email", "（未知）")
+        subject = f"[單字王通知] - 新使用者登入 - {email_addr}"
+        body = (
+            f"新使用者登入通知\n"
+            f"{'=' * 40}\n"
+            f"Email     : {email_addr}\n"
+            f"姓名      : {user_info.get('name', '')}\n"
+            f"Google ID : {user_info.get('sub', '')}\n"
+            f"頭像 URL  : {user_info.get('picture', '')}\n"
+            f"登入 IP   : {ip}\n"
+            f"登入時間  : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        )
+        await asyncio.to_thread(_send_email_sync, admin_emails, subject, body)
+    except Exception:
+        pass  # Email failure must never block the login flow
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +202,10 @@ class BanUserRequest(BaseModel):
     reason: str = ""
 
 
+class BookProgressRequest(BaseModel):
+    queue: list[int]
+
+
 # ---------------------------------------------------------------------------
 # Routes - Pages
 # ---------------------------------------------------------------------------
@@ -125,6 +214,15 @@ class BanUserRequest(BaseModel):
 async def index():
     html_path = STATIC_DIR / "index.html"
     return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def robots_txt():
+    return (
+        "User-agent: *\n"
+        "Disallow: /api/\n"
+        "Disallow: /auth/\n"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +258,7 @@ async def auth_google_callback(
         raise HTTPException(502, f"Google 驗證失敗：{e}")
 
     ip = _get_client_ip(request)
-    user_id = await db.get_or_create_google_user(
+    user_id, is_new = await db.get_or_create_google_user(
         google_id=user_info["sub"],
         name=user_info.get("name", ""),
         email=user_info.get("email", ""),
@@ -170,6 +268,10 @@ async def auth_google_callback(
 
     if await db.is_banned(user_id):
         return RedirectResponse("/?auth_error=banned", status_code=302)
+
+    # Non-blocking email notification for new registrations
+    if is_new:
+        asyncio.create_task(_notify_new_user(user_info, ip))
 
     redirect = RedirectResponse("/", status_code=302)
     _make_session(redirect, user_id)
@@ -246,6 +348,7 @@ async def get_me(
         "avatar_url": user["avatar_url"],
         "is_anonymous": user["is_anonymous"],
         "is_admin": await db.is_admin(user.get("email")),
+        "is_vip": user.get("is_vip", False),
         "study_remaining": None,
         "quiz_remaining": None,
     }
@@ -276,7 +379,7 @@ async def get_words(
     request: Request,
     user_id: Optional[int] = None,
     exclude_mastered: bool = False,
-    mode: Optional[str] = None,           # "study" | "quiz" — for anonymous limit check
+    mode: Optional[str] = None,
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
     uid = _require_session(session_token)
@@ -298,7 +401,6 @@ async def get_words(
             raise HTTPException(403, "今日試用測驗次數已達上限，請登入 Google 帳號繼續使用")
 
         await db.increment_anonymous_usage(ip, today, mode)
-        # Word count is limited on the frontend; backend returns full list
         return words
 
     if exclude_mastered and user_id is not None:
@@ -309,7 +411,7 @@ async def get_words(
 
 
 # ---------------------------------------------------------------------------
-# Routes - Audio (protected)
+# Routes - Audio (protected, rate-limited by middleware)
 # ---------------------------------------------------------------------------
 
 @app.get("/api/audio/{level}/{word_id}")
@@ -491,6 +593,44 @@ async def reset_wrong_words(
 
 
 # ---------------------------------------------------------------------------
+# Routes - Book Reading (VIP only)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/book/{level}/progress")
+async def get_book_progress(
+    level: str,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    user_id = await _require_vip(session_token)
+    progress = await db.get_book_progress(user_id, level)
+    total = len(loader.get_words(level))
+    if progress is None:
+        return {"initialized": False, "queue": [], "total": total}
+    return {"initialized": True, "queue": progress["queue"], "total": total}
+
+
+@app.post("/api/book/{level}/progress")
+async def save_book_progress(
+    level: str,
+    req: BookProgressRequest,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    user_id = await _require_vip(session_token)
+    await db.save_book_progress(user_id, level, req.queue)
+    return {"ok": True}
+
+
+@app.delete("/api/book/{level}/progress")
+async def reset_book_progress(
+    level: str,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    user_id = await _require_vip(session_token)
+    await db.reset_book_progress(user_id, level)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
 # Routes - Admin
 # ---------------------------------------------------------------------------
 
@@ -523,6 +663,26 @@ async def admin_unban_user(
 ):
     await _require_admin(session_token)
     await db.unban_user(user_id)
+    return {"ok": True}
+
+
+@app.post("/api/admin/users/{user_id}/vip")
+async def admin_set_vip(
+    user_id: int,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    await _require_admin(session_token)
+    await db.set_user_vip(user_id, True)
+    return {"ok": True}
+
+
+@app.delete("/api/admin/users/{user_id}/vip")
+async def admin_unset_vip(
+    user_id: int,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    await _require_admin(session_token)
+    await db.set_user_vip(user_id, False)
     return {"ok": True}
 
 

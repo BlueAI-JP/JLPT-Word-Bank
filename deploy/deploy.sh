@@ -15,6 +15,9 @@ echo "[deploy] 更新 Python 依賴..."
 "$APP_DIR/.venv/bin/pip" install --quiet \
     "fastapi[standard]" openpyxl aiosqlite uvicorn httpx
 
+# 提醒：GMAIL_APP_PASSWORD 需在 systemd service 的 EnvironmentFile 中設定
+# 例如 /etc/jlpt.env 加上：GMAIL_APP_PASSWORD=<16位應用程式密碼>
+
 echo "[deploy] 重啟服務..."
 sudo systemctl restart jlpt
 

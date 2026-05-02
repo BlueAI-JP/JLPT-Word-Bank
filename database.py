@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Optional
 import aiosqlite
@@ -73,6 +74,14 @@ async def init_db() -> None:
                 reason    TEXT,
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
+            CREATE TABLE IF NOT EXISTS book_read_progress (
+                user_id    INTEGER NOT NULL,
+                level      TEXT    NOT NULL,
+                queue      TEXT    NOT NULL DEFAULT '[]',
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, level),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
         """)
 
         # Migrate: add new columns to users (each isolated, ignore if exists)
@@ -84,6 +93,7 @@ async def init_db() -> None:
             "ALTER TABLE users ADD COLUMN last_login   DATETIME",
             "ALTER TABLE users ADD COLUMN last_ip      TEXT",
             "ALTER TABLE users ADD COLUMN login_count  INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN is_vip       INTEGER NOT NULL DEFAULT 0",
         ]:
             try:
                 await db.execute(col_sql)
@@ -129,14 +139,15 @@ async def get_or_create_user(name: str) -> int:
 
 async def get_or_create_google_user(
     google_id: str, name: str, email: str, avatar_url: str, ip: str
-) -> int:
-    """Upsert a Google-authenticated user; returns user_id."""
+) -> tuple[int, bool]:
+    """Upsert a Google-authenticated user; returns (user_id, is_new)."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
             "SELECT id FROM users WHERE google_id = ?", (google_id,)
         ) as cur:
             row = await cur.fetchone()
 
+        is_new = False
         if row:
             user_id = row[0]
             await db.execute(
@@ -148,6 +159,7 @@ async def get_or_create_google_user(
                 (name, email, avatar_url, ip, user_id),
             )
         else:
+            is_new = True
             # Ensure name uniqueness
             safe_name = name
             suffix = 0
@@ -172,7 +184,7 @@ async def get_or_create_google_user(
             user_id = row[0]
 
         await db.commit()
-    return user_id
+    return user_id, is_new
 
 
 async def get_anonymous_user_id() -> int:
@@ -188,7 +200,7 @@ async def get_anonymous_user_id() -> int:
 async def get_user_by_id(user_id: int) -> Optional[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
-            "SELECT id, name, email, avatar_url, is_anonymous FROM users WHERE id = ?",
+            "SELECT id, name, email, avatar_url, is_anonymous, is_vip FROM users WHERE id = ?",
             (user_id,),
         ) as cur:
             row = await cur.fetchone()
@@ -196,8 +208,17 @@ async def get_user_by_id(user_id: int) -> Optional[dict]:
         return None
     return {
         "id": row[0], "name": row[1], "email": row[2],
-        "avatar_url": row[3], "is_anonymous": bool(row[4]),
+        "avatar_url": row[3], "is_anonymous": bool(row[4]), "is_vip": bool(row[5]),
     }
+
+
+async def set_user_vip(user_id: int, is_vip: bool) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET is_vip = ? WHERE id = ?",
+            (1 if is_vip else 0, user_id),
+        )
+        await db.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -379,6 +400,42 @@ async def reset_quiz_wrong_words(user_id: int, level: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Book reading progress
+# ---------------------------------------------------------------------------
+
+async def get_book_progress(user_id: int, level: str) -> Optional[dict]:
+    """Return {queue: [word_id, ...]} or None if never initialized."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT queue FROM book_read_progress WHERE user_id = ? AND level = ?",
+            (user_id, level),
+        ) as cur:
+            row = await cur.fetchone()
+    if not row:
+        return None
+    return {"queue": json.loads(row[0])}
+
+
+async def save_book_progress(user_id: int, level: str, queue: list[int]) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT OR REPLACE INTO book_read_progress (user_id, level, queue, updated_at)
+               VALUES (?, ?, ?, CURRENT_TIMESTAMP)""",
+            (user_id, level, json.dumps(queue)),
+        )
+        await db.commit()
+
+
+async def reset_book_progress(user_id: int, level: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "DELETE FROM book_read_progress WHERE user_id = ? AND level = ?",
+            (user_id, level),
+        )
+        await db.commit()
+
+
+# ---------------------------------------------------------------------------
 # Admin helpers
 # ---------------------------------------------------------------------------
 
@@ -454,7 +511,8 @@ async def get_all_users_admin() -> list[dict]:
                 (SELECT COUNT(*) FROM quiz_sessions  q WHERE q.user_id = u.id),
                 (SELECT COUNT(*) FROM mastered_words m WHERE m.user_id = u.id),
                 (SELECT MAX(score) FROM quiz_sessions q WHERE q.user_id = u.id),
-                CASE WHEN b.user_id IS NOT NULL THEN 1 ELSE 0 END
+                CASE WHEN b.user_id IS NOT NULL THEN 1 ELSE 0 END,
+                u.is_vip
             FROM users u
             LEFT JOIN banned_users b ON b.user_id = u.id
             WHERE u.is_anonymous = 0
@@ -469,7 +527,7 @@ async def get_all_users_admin() -> list[dict]:
             "login_count": r[3] or 0, "last_login": r[4], "last_ip": r[5] or "",
             "study_count": r[6], "quiz_count": r[7],
             "mastered_count": r[8], "best_quiz_score": r[9],
-            "is_banned": bool(r[10]),
+            "is_banned": bool(r[10]), "is_vip": bool(r[11]),
         }
         for r in rows
     ]

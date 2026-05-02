@@ -16,6 +16,11 @@ JLPT_N1/
 JLPT_N2/
 JLPT_N3/
 JLPT_N4/
+**/*.mp3
+
+# Word bank Excel files (proprietary data, deploy manually)
+WordBank/*.xlsx
+WordBank/*.xls
 
 # Temp files
 ~$*
