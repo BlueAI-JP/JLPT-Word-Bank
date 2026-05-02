@@ -10,6 +10,11 @@ DB_PATH = Path(__file__).parent / "data" / "progress.db"
 ANON_STUDY_LIMIT = 2
 ANON_QUIZ_LIMIT  = 1
 
+# ---------------------------------------------------------------------------
+# Admin
+# ---------------------------------------------------------------------------
+DEFAULT_ADMIN = "bluejp.lin@gmail.com"
+
 
 async def init_db() -> None:
     DB_PATH.parent.mkdir(exist_ok=True)
@@ -58,6 +63,16 @@ async def init_db() -> None:
                 quiz_count  INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (ip, date)
             );
+            CREATE TABLE IF NOT EXISTS admin_emails (
+                email TEXT PRIMARY KEY NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS banned_users (
+                user_id   INTEGER PRIMARY KEY NOT NULL,
+                banned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                banned_by TEXT,
+                reason    TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
         """)
 
         # Migrate: add new columns to users (each isolated, ignore if exists)
@@ -68,6 +83,7 @@ async def init_db() -> None:
             "ALTER TABLE users ADD COLUMN is_anonymous INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE users ADD COLUMN last_login   DATETIME",
             "ALTER TABLE users ADD COLUMN last_ip      TEXT",
+            "ALTER TABLE users ADD COLUMN login_count  INTEGER NOT NULL DEFAULT 0",
         ]:
             try:
                 await db.execute(col_sql)
@@ -77,6 +93,10 @@ async def init_db() -> None:
         # Ensure the single shared anonymous user exists
         await db.execute(
             "INSERT OR IGNORE INTO users (name, is_anonymous) VALUES ('Anonymous', 1)"
+        )
+        # Ensure the default admin exists
+        await db.execute(
+            "INSERT OR IGNORE INTO admin_emails (email) VALUES (?)", (DEFAULT_ADMIN,)
         )
         await db.commit()
 
@@ -122,7 +142,8 @@ async def get_or_create_google_user(
             await db.execute(
                 """UPDATE users
                    SET name = ?, email = ?, avatar_url = ?,
-                       last_login = CURRENT_TIMESTAMP, last_ip = ?
+                       last_login = CURRENT_TIMESTAMP, last_ip = ?,
+                       login_count = login_count + 1
                    WHERE id = ?""",
                 (name, email, avatar_url, ip, user_id),
             )
@@ -142,8 +163,8 @@ async def get_or_create_google_user(
 
             await db.execute(
                 """INSERT INTO users
-                   (google_id, name, email, avatar_url, is_anonymous, last_login, last_ip)
-                   VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP, ?)""",
+                   (google_id, name, email, avatar_url, is_anonymous, last_login, last_ip, login_count)
+                   VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP, ?, 1)""",
                 (google_id, safe_name, email, avatar_url, ip),
             )
             async with db.execute("SELECT last_insert_rowid()") as cur:
@@ -355,3 +376,100 @@ async def reset_quiz_wrong_words(user_id: int, level: str) -> None:
             (user_id, level),
         )
         await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Admin helpers
+# ---------------------------------------------------------------------------
+
+async def is_admin(email: Optional[str]) -> bool:
+    if not email:
+        return False
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT 1 FROM admin_emails WHERE email = ?", (email,)
+        ) as cur:
+            return await cur.fetchone() is not None
+
+
+async def get_admin_emails() -> list[str]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT email FROM admin_emails ORDER BY email") as cur:
+            rows = await cur.fetchall()
+    return [r[0] for r in rows]
+
+
+async def add_admin_email(email: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO admin_emails (email) VALUES (?)", (email,)
+        )
+        await db.commit()
+
+
+async def remove_admin_email(email: str) -> None:
+    if email == DEFAULT_ADMIN:
+        raise ValueError("不可刪除預設管理者帳號")
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM admin_emails WHERE email = ?", (email,))
+        await db.commit()
+
+
+async def is_banned(user_id: int) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT 1 FROM banned_users WHERE user_id = ?", (user_id,)
+        ) as cur:
+            return await cur.fetchone() is not None
+
+
+async def ban_user(user_id: int, banned_by: str, reason: str = "") -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT OR IGNORE INTO banned_users (user_id, banned_by, reason)
+               VALUES (?, ?, ?)""",
+            (user_id, banned_by, reason),
+        )
+        await db.commit()
+
+
+async def unban_user(user_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM banned_users WHERE user_id = ?", (user_id,))
+        await db.commit()
+
+
+async def get_all_users_admin() -> list[dict]:
+    """Return all non-anonymous users with aggregated stats for the admin panel."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("""
+            SELECT
+                u.id,
+                u.name,
+                u.email,
+                u.login_count,
+                u.last_login,
+                u.last_ip,
+                (SELECT COUNT(*) FROM study_sessions s WHERE s.user_id = u.id),
+                (SELECT COUNT(*) FROM quiz_sessions  q WHERE q.user_id = u.id),
+                (SELECT COUNT(*) FROM mastered_words m WHERE m.user_id = u.id),
+                (SELECT MAX(score) FROM quiz_sessions q WHERE q.user_id = u.id),
+                CASE WHEN b.user_id IS NOT NULL THEN 1 ELSE 0 END
+            FROM users u
+            LEFT JOIN banned_users b ON b.user_id = u.id
+            WHERE u.is_anonymous = 0
+            ORDER BY
+                CASE WHEN u.last_login IS NULL THEN 1 ELSE 0 END,
+                u.last_login DESC
+        """) as cur:
+            rows = await cur.fetchall()
+    return [
+        {
+            "id": r[0], "name": r[1], "email": r[2] or "",
+            "login_count": r[3] or 0, "last_login": r[4], "last_ip": r[5] or "",
+            "study_count": r[6], "quiz_count": r[7],
+            "mastered_count": r[8], "best_quiz_score": r[9],
+            "is_banned": bool(r[10]),
+        }
+        for r in rows
+    ]

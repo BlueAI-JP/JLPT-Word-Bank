@@ -60,6 +60,15 @@ def _get_client_ip(request: Request) -> str:
     return request.client.host
 
 
+async def _require_admin(session_token: Optional[str]) -> int:
+    """Validate session and confirm the user is in admin_emails. Returns user_id."""
+    user_id = _require_session(session_token)
+    user = await db.get_user_by_id(user_id)
+    if not user or not await db.is_admin(user.get("email")):
+        raise HTTPException(status_code=403, detail="需要管理者權限")
+    return user_id
+
+
 def _make_session(response: Response, user_id: int) -> str:
     token = secrets.token_urlsafe(32)
     _sessions[token] = user_id
@@ -98,6 +107,14 @@ class QuizCompleteRequest(BaseModel):
     level: str
     score: float
     wrong_word_ids: list[int] = []
+
+
+class AdminAddEmailRequest(BaseModel):
+    email: str
+
+
+class BanUserRequest(BaseModel):
+    reason: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -150,6 +167,9 @@ async def auth_google_callback(
         avatar_url=user_info.get("picture", ""),
         ip=ip,
     )
+
+    if await db.is_banned(user_id):
+        return RedirectResponse("/?auth_error=banned", status_code=302)
 
     redirect = RedirectResponse("/", status_code=302)
     _make_session(redirect, user_id)
@@ -214,12 +234,18 @@ async def get_me(
     if not user:
         raise HTTPException(404, "使用者不存在")
 
+    if not user["is_anonymous"] and await db.is_banned(user_id):
+        if session_token and session_token in _sessions:
+            del _sessions[session_token]
+        raise HTTPException(403, "此帳號已被封禁，請聯繫管理員")
+
     result: dict = {
         "user_id": user["id"],
         "name": user["name"],
         "email": user["email"],
         "avatar_url": user["avatar_url"],
         "is_anonymous": user["is_anonymous"],
+        "is_admin": await db.is_admin(user.get("email")),
         "study_remaining": None,
         "quiz_remaining": None,
     }
@@ -461,6 +487,79 @@ async def reset_wrong_words(
 ):
     _require_session(session_token)
     await db.reset_quiz_wrong_words(user_id, level)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Routes - Admin
+# ---------------------------------------------------------------------------
+
+@app.get("/api/admin/users")
+async def admin_list_users(
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    await _require_admin(session_token)
+    return await db.get_all_users_admin()
+
+
+@app.post("/api/admin/users/{user_id}/ban")
+async def admin_ban_user(
+    user_id: int,
+    req: BanUserRequest,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    admin_uid = await _require_admin(session_token)
+    admin_user = await db.get_user_by_id(admin_uid)
+    if user_id == admin_uid:
+        raise HTTPException(400, "不可封禁自己的帳號")
+    await db.ban_user(user_id, banned_by=admin_user["email"] or "", reason=req.reason)
+    return {"ok": True}
+
+
+@app.delete("/api/admin/users/{user_id}/ban")
+async def admin_unban_user(
+    user_id: int,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    await _require_admin(session_token)
+    await db.unban_user(user_id)
+    return {"ok": True}
+
+
+@app.get("/api/admin/admins")
+async def admin_list_admins(
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    await _require_admin(session_token)
+    return {
+        "emails": await db.get_admin_emails(),
+        "default_admin": db.DEFAULT_ADMIN,
+    }
+
+
+@app.post("/api/admin/admins")
+async def admin_add_admin_email(
+    req: AdminAddEmailRequest,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    await _require_admin(session_token)
+    email = req.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(400, "請輸入有效的 Email")
+    await db.add_admin_email(email)
+    return {"ok": True}
+
+
+@app.delete("/api/admin/admins/{email:path}")
+async def admin_remove_admin_email(
+    email: str,
+    session_token: Annotated[Optional[str], Cookie()] = None,
+):
+    await _require_admin(session_token)
+    try:
+        await db.remove_admin_email(email)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     return {"ok": True}
 
 

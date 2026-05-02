@@ -659,6 +659,52 @@ kbd {
   .kabuto-logo { width: 110px; height: 145px; }
   .login-hero { gap: 6px; }
 }
+
+/* ===================== Admin Screen ===================== */
+#screen-admin { overflow: hidden; }
+.admin-tabs {
+  display: flex; flex-shrink: 0;
+  border-bottom: 1px solid var(--border); margin-bottom: 2px;
+}
+.admin-tab {
+  flex: 1; padding: 10px 4px; background: none; border: none;
+  color: var(--text-muted); font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; border-bottom: 2px solid transparent;
+  font-family: var(--font); transition: color 0.15s, border-color 0.15s;
+}
+.admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.admin-panel { display: none; flex: 1; overflow-y: auto; flex-direction: column; gap: 8px; padding: 10px 0; }
+.admin-panel.active { display: flex; }
+.admin-table-wrap { overflow-x: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+.admin-table {
+  width: 100%; border-collapse: collapse; font-size: 0.75rem; color: var(--text); min-width: 680px;
+}
+.admin-table th {
+  padding: 7px 8px; text-align: left; color: var(--primary);
+  border-bottom: 1px solid var(--border); font-size: 0.72rem; white-space: nowrap;
+  position: sticky; top: 0; background: var(--surface2); z-index: 1;
+}
+.admin-table td { padding: 7px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+.admin-table tr.banned-row td { color: #e74c3c; }
+.admin-table tr:hover td { background: rgba(255,255,255,0.02); }
+.admin-badge-banned  { display:inline-block; padding:1px 6px; border-radius:4px; font-size:0.68rem; font-weight:700; background:rgba(231,76,60,0.2); color:#e74c3c; }
+.admin-badge-active  { display:inline-block; padding:1px 6px; border-radius:4px; font-size:0.68rem; font-weight:700; background:rgba(39,174,96,0.18); color:#27ae60; }
+.btn-ban   { font-size:0.72rem; padding:3px 8px; background:#c0392b; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+.btn-unban { font-size:0.72rem; padding:3px 8px; background:#27ae60; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+.admin-email-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px; background: var(--surface); border-radius: 8px;
+  border: 1px solid var(--border); font-size: 0.85rem;
+}
+.admin-email-row.is-default { border-color: rgba(201,168,76,0.35); }
+.admin-add-row { display: flex; gap: 8px; flex-shrink: 0; }
+.admin-add-row input {
+  flex: 1; padding: 8px 12px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-size: 0.85rem; font-family: var(--font);
+  outline: none;
+}
+.admin-add-row input:focus { border-color: var(--primary); }
 </style>
 </head>
 <body>
@@ -788,6 +834,7 @@ kbd {
     <div class="header">
       <div class="header-title">⛩ JLPT 單字王</div>
       <div id="header-user" class="header-user"></div>
+      <button id="btn-admin" class="btn btn-ghost btn-sm" style="display:none" onclick="showAdmin()">🛡</button>
       <button class="btn btn-ghost btn-sm" onclick="logout()">登出</button>
     </div>
     <div style="font-size:0.8rem;color:var(--text-muted);font-weight:700;padding:2px 0;letter-spacing:0.08em">選擇練習等級</div>
@@ -1040,6 +1087,45 @@ kbd {
 
 <div class="toast" id="toast"></div>
 
+  <!-- ===== Admin Screen ===== -->
+  <div id="screen-admin" class="screen">
+    <div class="header">
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('level')">← 返回</button>
+      <div class="header-title">🛡 管理者面板</div>
+    </div>
+    <div class="admin-tabs">
+      <button class="admin-tab active" id="admin-tab-users"  onclick="adminSwitchTab('users')">👥 使用者列表</button>
+      <button class="admin-tab"        id="admin-tab-admins" onclick="adminSwitchTab('admins')">🔑 管理者帳號</button>
+    </div>
+
+    <!-- Users panel -->
+    <div id="admin-panel-users" class="admin-panel active">
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>名稱 / Email</th>
+              <th>登入</th><th>練習</th><th>測驗</th><th>學會</th><th>最高分</th>
+              <th>最近登入</th><th>IP</th><th>狀態</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="admin-users-tbody">
+            <tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-muted)">載入中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Admins panel -->
+    <div id="admin-panel-admins" class="admin-panel">
+      <div class="admin-add-row">
+        <input type="email" id="admin-new-email" placeholder="輸入 Google Email 新增管理者">
+        <button class="btn btn-primary btn-sm" onclick="adminAddEmail()">新增</button>
+      </div>
+      <div id="admin-emails-list" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+  </div>
+
   <!-- Upgrade prompt modal (shown when anonymous hits daily limit) -->
   <div id="upgrade-modal" class="modal-overlay" style="display:none" onclick="closeUpgradeModal()">
     <div class="modal-box" onclick="event.stopPropagation()">
@@ -1079,7 +1165,7 @@ const STORAGE_KEY = 'jlpt_session_v3';
 // Global state
 const S = {
   userId: null, userName: null, userEmail: null,
-  userAvatar: null, isAnonymous: false,
+  userAvatar: null, isAnonymous: false, isAdmin: false,
   studyRemaining: null, quizRemaining: null,
   token: null, currentLevel: null, allLevels: [],
   studyQueue: [], studyTotal: 0, studyStats: {},
@@ -1191,9 +1277,12 @@ function applyUserInfo(me) {
   S.userEmail     = me.email     ?? null;
   S.userAvatar    = me.avatar_url ?? null;
   S.isAnonymous   = me.is_anonymous ?? false;
+  S.isAdmin       = me.is_admin     ?? false;
   S.studyRemaining = me.study_remaining ?? null;
   S.quizRemaining  = me.quiz_remaining  ?? null;
   updateHeaderUser();
+  const adminBtn = document.getElementById('btn-admin');
+  if (adminBtn) adminBtn.style.display = S.isAdmin ? '' : 'none';
 }
 
 function updateHeaderUser() {
@@ -1716,6 +1805,16 @@ document.addEventListener('keydown', e => {
 // Boot
 // =====================================================================
 async function boot() {
+  // Handle auth_error from Google OAuth redirect (e.g. banned user)
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('auth_error') === 'banned') {
+    history.replaceState({}, '', '/');
+    clearSession();
+    showScreen('login');
+    toast('您的帳號已被封禁，請聯繫管理員', 6000);
+    return;
+  }
+
   loadSession();  // restore study/quiz state from localStorage
   try {
     const me = await api('GET', '/api/me');
@@ -1739,10 +1838,13 @@ async function boot() {
     } else {
       showScreen('level');
     }
-  } catch {
-    // No valid session → show login
+  } catch (e) {
+    // No valid session or banned → show login
     clearSession();
     showScreen('login');
+    if (e?.message?.includes('封禁')) {
+      toast('您的帳號已被封禁，請聯繫管理員', 6000);
+    }
   }
 }
 
@@ -1752,6 +1854,129 @@ window.showScreen = function(name) {
   if (name === 'progress') showProgress();
   if (name === 'mastered') showMastered();
 };
+
+// =====================================================================
+// Admin
+// =====================================================================
+function showAdmin() {
+  _showScreen('admin');
+  adminSwitchTab('users');
+}
+
+function adminSwitchTab(tab) {
+  ['users', 'admins'].forEach(t => {
+    document.getElementById(`admin-panel-${t}`).classList.toggle('active', t === tab);
+    document.getElementById(`admin-tab-${t}`).classList.toggle('active', t === tab);
+  });
+  if (tab === 'users')  adminLoadUsers();
+  if (tab === 'admins') adminLoadEmails();
+}
+
+async function adminLoadUsers() {
+  const tbody = document.getElementById('admin-users-tbody');
+  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-muted)">載入中…</td></tr>';
+  try {
+    const users = await api('GET', '/api/admin/users');
+    tbody.innerHTML = '';
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-muted)">尚無使用者記錄</td></tr>';
+      return;
+    }
+    users.forEach(u => {
+      const tr = document.createElement('tr');
+      if (u.is_banned) tr.classList.add('banned-row');
+      const isSelf = u.id === S.userId;
+      tr.innerHTML = `
+        <td>
+          <div style="font-weight:700">${u.name}</div>
+          <div style="font-size:0.7rem;color:var(--text-muted)">${u.email || '—'}</div>
+        </td>
+        <td>${u.login_count ?? 0}</td>
+        <td>${u.study_count ?? 0}</td>
+        <td>${u.quiz_count ?? 0}</td>
+        <td>${u.mastered_count ?? 0}</td>
+        <td>${u.best_quiz_score != null ? u.best_quiz_score + '分' : '—'}</td>
+        <td style="white-space:nowrap;font-size:0.7rem">${u.last_login ? fmtDate(u.last_login) : '—'}</td>
+        <td style="font-size:0.7rem">${u.last_ip || '—'}</td>
+        <td>${u.is_banned
+          ? '<span class="admin-badge-banned">封禁</span>'
+          : '<span class="admin-badge-active">正常</span>'}</td>
+        <td>${isSelf
+          ? '<span style="font-size:0.7rem;color:var(--text-muted)">（自己）</span>'
+          : u.is_banned
+            ? `<button class="btn-unban" onclick="adminUnbanUser(${u.id})">解封</button>`
+            : `<button class="btn-ban"   onclick="adminBanUser(${u.id},'${u.name.replace(/'/g,"\\'")}')">封禁</button>`
+        }</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:20px;color:#e74c3c">載入失敗：${e.message}</td></tr>`;
+  }
+}
+
+async function adminBanUser(userId, name) {
+  const reason = prompt(`封禁「${name}」的原因（可留空）：`);
+  if (reason === null) return;
+  try {
+    await api('POST', `/api/admin/users/${userId}/ban`, { reason });
+    toast(`✓ 已封禁 ${name}`);
+    adminLoadUsers();
+  } catch (e) { toast('封禁失敗：' + e.message); }
+}
+
+async function adminUnbanUser(userId) {
+  if (!confirm('確定要解封此使用者嗎？')) return;
+  try {
+    await api('DELETE', `/api/admin/users/${userId}/ban`);
+    toast('✓ 已解封');
+    adminLoadUsers();
+  } catch (e) { toast('解封失敗：' + e.message); }
+}
+
+async function adminLoadEmails() {
+  const listEl = document.getElementById('admin-emails-list');
+  listEl.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;padding:6px 0">載入中…</div>';
+  try {
+    const { emails, default_admin } = await api('GET', '/api/admin/admins');
+    listEl.innerHTML = '';
+    emails.forEach(email => {
+      const isDefault = email === default_admin;
+      const row = document.createElement('div');
+      row.className = 'admin-email-row' + (isDefault ? ' is-default' : '');
+      row.innerHTML = `
+        <span>${email}${isDefault
+          ? ' <span style="color:var(--primary);font-size:0.72rem;font-weight:700">[預設]</span>'
+          : ''}</span>
+        <button class="btn btn-ghost btn-sm" ${isDefault ? 'disabled' : `onclick="adminRemoveEmail('${email.replace(/'/g,"\\'")}')"`}>移除</button>
+      `;
+      listEl.appendChild(row);
+    });
+  } catch (e) {
+    listEl.innerHTML = `<div style="color:#e74c3c;font-size:0.85rem">${e.message}</div>`;
+  }
+}
+
+async function adminAddEmail() {
+  const input = document.getElementById('admin-new-email');
+  const email = input.value.trim().toLowerCase();
+  if (!email || !email.includes('@')) { toast('請輸入有效的 Email'); return; }
+  try {
+    await api('POST', '/api/admin/admins', { email });
+    input.value = '';
+    toast('✓ 已新增管理者');
+    adminLoadEmails();
+  } catch (e) { toast('新增失敗：' + e.message); }
+}
+
+async function adminRemoveEmail(email) {
+  if (!confirm(`確定要移除管理者 ${email} 嗎？`)) return;
+  try {
+    await api('DELETE', `/api/admin/admins/${encodeURIComponent(email)}`);
+    toast('✓ 已移除管理者');
+    adminLoadEmails();
+  } catch (e) { toast('移除失敗：' + e.message); }
+}
 
 boot();
 </script>
