@@ -758,6 +758,52 @@ kbd {
 }
 .admin-add-row input:focus { border-color: var(--primary); }
 
+/* ===================== Help / Manual Screen ===================== */
+.help-content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.help-section {
+  background: var(--surface); border-radius: var(--radius);
+  border: 1px solid var(--border); overflow: hidden;
+}
+.help-section-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; background: var(--surface2);
+  border-bottom: 1px solid var(--border); cursor: pointer;
+  user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.help-section-header:hover { background: rgba(201,168,76,0.06); }
+.help-section-icon { font-size: 1.2rem; flex-shrink: 0; }
+.help-section-title { font-size: 0.95rem; font-weight: 800; color: var(--primary); flex: 1; letter-spacing: 0.04em; }
+.help-section-arrow { font-size: 0.7rem; color: var(--text-muted); transition: transform 0.2s; }
+.help-section-arrow.open { transform: rotate(90deg); }
+.help-section-body { padding: 14px 16px; display: none; }
+.help-section-body.open { display: block; }
+.help-p { font-size: 0.84rem; color: var(--text); line-height: 1.75; margin-bottom: 8px; }
+.help-p:last-child { margin-bottom: 0; }
+.help-label {
+  display: inline-block; padding: 1px 8px; border-radius: 4px;
+  font-size: 0.72rem; font-weight: 700; vertical-align: middle; margin: 0 2px;
+}
+.help-label-gold   { background: rgba(201,168,76,0.2); color: var(--primary); border: 1px solid rgba(201,168,76,0.3); }
+.help-label-green  { background: rgba(39,174,96,0.18); color: #27ae60; }
+.help-label-red    { background: rgba(231,76,60,0.18);  color: #e74c3c; }
+.help-label-orange { background: rgba(230,126,34,0.18); color: #e67e22; }
+.help-label-blue   { background: rgba(41,128,185,0.18); color: #2980b9; }
+.help-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 6px; }
+.help-table th { text-align: left; color: var(--primary); font-size: 0.75rem;
+  padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.help-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); vertical-align: middle; }
+.help-table td:first-child { white-space: nowrap; }
+.help-tip {
+  margin-top: 8px; padding: 8px 12px; border-radius: 8px;
+  background: rgba(201,168,76,0.08); border-left: 3px solid var(--primary);
+  font-size: 0.78rem; color: var(--text-muted); line-height: 1.6;
+}
+.help-limit-box {
+  margin-top: 8px; padding: 10px 14px; border-radius: 8px;
+  background: rgba(230,126,34,0.1); border: 1px solid rgba(230,126,34,0.3);
+  font-size: 0.8rem; color: #e67e22; line-height: 1.7;
+}
+
 /* ===================== Version Badge ===================== */
 .version-badge {
   font-size: 0.6rem; color: #4a3618; text-align: center;
@@ -936,6 +982,7 @@ kbd {
       <div class="header-title">⛩ JLPT 單字王</div>
       <div id="header-user" class="header-user"></div>
       <button id="btn-admin" class="btn btn-ghost btn-sm" style="display:none" onclick="showAdmin()">🛡</button>
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('help')" title="使用說明">？</button>
       <button class="btn btn-ghost btn-sm" onclick="logout()">登出</button>
     </div>
     <div style="font-size:0.8rem;color:var(--text-muted);font-weight:700;padding:2px 0;letter-spacing:0.08em">選擇練習等級</div>
@@ -1232,6 +1279,250 @@ kbd {
 </div>
 
 <div class="toast" id="toast"></div>
+
+  <!-- ===== Help / Manual Screen ===== -->
+  <div id="screen-help" class="screen">
+    <div class="header">
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('level')">← 返回</button>
+      <div class="header-title">📖 使用說明</div>
+    </div>
+    <div class="help-content">
+
+      <!-- 1. 登入 -->
+      <div class="help-section">
+        <div class="help-section-header" onclick="toggleHelp(this)">
+          <span class="help-section-icon">🔑</span>
+          <span class="help-section-title">登入方式</span>
+          <span class="help-section-arrow">▶</span>
+        </div>
+        <div class="help-section-body">
+          <p class="help-p">
+            <strong>Google 帳號登入</strong><br>
+            點擊「使用 Google 帳號登入」，授權後即可使用完整功能，學習進度永久保存。
+          </p>
+          <p class="help-p">
+            <strong>試用模式</strong><br>
+            點擊「我要試用」，無需帳號即可體驗，但有每日次數限制：
+          </p>
+          <div class="help-limit-box">
+            ⚠️ 試用限制（每日重置）<br>
+            學習模式：每次 10 個單字，每日最多 2 次<br>
+            測驗模式：每次 15 個單字，每日最多 1 次<br>
+            ✗ 不支援：測驗檢討、學習記錄保存
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 選擇等級 -->
+      <div class="help-section">
+        <div class="help-section-header" onclick="toggleHelp(this)">
+          <span class="help-section-icon">🎯</span>
+          <span class="help-section-title">選擇練習等級</span>
+          <span class="help-section-arrow">▶</span>
+        </div>
+        <div class="help-section-body">
+          <p class="help-p">
+            進入後選擇 JLPT 等級（N4、N3 等），即可進入該等級的學習選單。<br>
+            灰色的等級表示「即將開放」，尚未有單字資料。
+          </p>
+          <div class="help-tip">💡 建議從 N4 開始，打好基礎後再挑戰 N3</div>
+        </div>
+      </div>
+
+      <!-- 3. 學習模式 -->
+      <div class="help-section">
+        <div class="help-section-header" onclick="toggleHelp(this)">
+          <span class="help-section-icon">📚</span>
+          <span class="help-section-title">學習模式</span>
+          <span class="help-section-arrow">▶</span>
+        </div>
+        <div class="help-section-body">
+          <p class="help-p">
+            每次隨機抽取 <strong>20 個單字</strong>，使用 <strong>SRS 間隔重複法</strong>，幫助長期記憶。
+            已標為「學會」的單字不會再出現。
+          </p>
+          <p class="help-p"><strong>操作步驟：</strong></p>
+          <p class="help-p">
+            1. 看到單字正面 → 試著回想中文意思<br>
+            2. 點擊卡片或按 <kbd>Space</kbd> 翻面查看答案<br>
+            3. 根據記憶狀況按下評分按鈕：
+          </p>
+          <table class="help-table">
+            <tr>
+              <td><span class="help-label help-label-red">Again</span></td>
+              <td>完全忘記，立刻再複習一次</td>
+            </tr>
+            <tr>
+              <td><span class="help-label help-label-orange">Hard</span></td>
+              <td>記得但很勉強，插入中間位置</td>
+            </tr>
+            <tr>
+              <td><span class="help-label help-label-green">Good</span></td>
+              <td>記得，移到本次佇列末尾</td>
+            </tr>
+            <tr>
+              <td><span class="help-label help-label-blue">Easy</span></td>
+              <td>完全記住！標為「已學會」並移除</td>
+            </tr>
+          </table>
+          <div class="help-tip">💡 按 <kbd>Enter</kbd> 可播放單字發音</div>
+        </div>
+      </div>
+
+      <!-- 4. 測驗模式 -->
+      <div class="help-section">
+        <div class="help-section-header" onclick="toggleHelp(this)">
+          <span class="help-section-icon">📝</span>
+          <span class="help-section-title">測驗模式</span>
+          <span class="help-section-arrow">▶</span>
+        </div>
+        <div class="help-section-body">
+          <p class="help-p">
+            隨機抽取 <strong>50 個單字</strong>，看到單字後按「會」或「不會」，
+            系統自動計算分數並記錄錯誤單字。
+          </p>
+          <table class="help-table">
+            <tr>
+              <td><span class="help-label help-label-green">✓ 會</span></td>
+              <td>計入答對，按 <kbd>Y</kbd></td>
+            </tr>
+            <tr>
+              <td><span class="help-label help-label-red">✕ 不會</span></td>
+              <td>計入答錯並記錄，按 <kbd>N</kbd></td>
+            </tr>
+          </table>
+          <p class="help-p" style="margin-top:10px">
+            測驗完成後顯示分數，錯誤單字會自動加入「測驗檢討」庫中。
+          </p>
+          <div class="help-tip">💡 按 <kbd>Enter</kbd> 可播放單字發音</div>
+        </div>
+      </div>
+
+      <!-- 5. 測驗檢討 -->
+      <div class="help-section">
+        <div class="help-section-header" onclick="toggleHelp(this)">
+          <span class="help-section-icon">🔍</span>
+          <span class="help-section-title">測驗檢討模式</span>
+          <span class="help-section-arrow">▶</span>
+        </div>
+        <div class="help-section-body">
+          <p class="help-p">
+            從歷次測驗中記錄的<strong>錯誤單字庫</strong>隨機抽取 20 個進行複習。
+            需要先完成至少一次測驗才能使用此功能。
+          </p>
+          <p class="help-p">
+            操作方式與學習模式相同，但 <span class="help-label help-label-blue">Easy</span>
+            的效果是將該單字從「錯誤單字庫」中移除，代表已克服弱點。
+          </p>
+          <div class="help-tip">💡 登入 Google 帳號才能使用此功能</div>
+        </div>
+      </div>
+
+      <!-- 6. 已學會單字 -->
+      <div class="help-section">
+        <div class="help-section-header" onclick="toggleHelp(this)">
+          <span class="help-section-icon">⭐</span>
+          <span class="help-section-title">已學會單字</span>
+          <span class="help-section-arrow">▶</span>
+        </div>
+        <div class="help-section-body">
+          <p class="help-p">
+            查看所有在學習模式中按下 <span class="help-label help-label-blue">Easy</span> 的單字列表。
+            點擊任一單字可查看完整資訊（讀音、詞性、中文、例句）並播放發音。
+          </p>
+          <p class="help-p">
+            已學會的單字在「學習模式」中不會再出現，讓你專注於還不熟悉的單字。
+          </p>
+        </div>
+      </div>
+
+      <!-- 7. 全書閱讀 (VIP) -->
+      <div class="help-section">
+        <div class="help-section-header" onclick="toggleHelp(this)">
+          <span class="help-section-icon">📖</span>
+          <span class="help-section-title">全書閱讀模式 <span class="vip-badge">VIP</span></span>
+          <span class="help-section-arrow">▶</span>
+        </div>
+        <div class="help-section-body">
+          <p class="help-p">
+            將該等級的<strong>所有單字</strong>依照編號順序排列，讓你像閱讀課本一樣從頭到尾瀏覽。
+            每張卡片直接顯示完整資訊（讀音、詞性、中文、例句）。
+          </p>
+          <table class="help-table">
+            <tr>
+              <td><span class="help-label help-label-orange">🔁 再讀</span></td>
+              <td>將此單字移到閱讀列表最後，稍後再看</td>
+            </tr>
+            <tr>
+              <td><span class="help-label help-label-blue">✓ 已讀</span></td>
+              <td>完成此單字，從列表移除</td>
+            </tr>
+          </table>
+          <p class="help-p" style="margin-top:10px">
+            <strong>自動朗讀</strong>：進入時可選擇開啟，每張卡片自動播放發音。<br>
+            <strong>進度保存</strong>：隨時離開，下次自動從離開的位置繼續。<br>
+            <strong>重置</strong>：按標題列的「🔄 重置」可重新從第一個單字開始。
+          </p>
+          <div class="help-tip">
+            💡 鍵盤快捷：<kbd>→</kbd> / <kbd>D</kbd> = 已讀　<kbd>←</kbd> / <kbd>A</kbd> = 再讀　<kbd>Enter</kbd> = 播音
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. 學習記錄 -->
+      <div class="help-section">
+        <div class="help-section-header" onclick="toggleHelp(this)">
+          <span class="help-section-icon">📊</span>
+          <span class="help-section-title">學習記錄</span>
+          <span class="help-section-arrow">▶</span>
+        </div>
+        <div class="help-section-body">
+          <p class="help-p">
+            查看各等級的學習統計：
+          </p>
+          <p class="help-p">
+            • 已學會單字數 / 總單字數 及完成百分比<br>
+            • 錯誤單字庫數量<br>
+            • 學習次數與最近練習時間<br>
+            • 測驗次數、最佳成績與最近測驗時間
+          </p>
+          <p class="help-p">
+            頁面底部提供個別<strong>重置</strong>功能，可清除特定類型的記錄。
+          </p>
+          <div class="help-tip">⚠️ 重置後資料無法復原，請謹慎操作</div>
+        </div>
+      </div>
+
+      <!-- 9. 快捷鍵 -->
+      <div class="help-section">
+        <div class="help-section-header" onclick="toggleHelp(this)">
+          <span class="help-section-icon">⌨️</span>
+          <span class="help-section-title">鍵盤快捷鍵</span>
+          <span class="help-section-arrow">▶</span>
+        </div>
+        <div class="help-section-body">
+          <table class="help-table">
+            <thead>
+              <tr><th>按鍵</th><th>功能</th><th>適用模式</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><kbd>Space</kbd></td><td>翻轉卡片</td><td>學習</td></tr>
+              <tr><td><kbd>Enter</kbd></td><td>播放發音</td><td>學習 / 測驗 / 全書閱讀</td></tr>
+              <tr><td><kbd>1</kbd></td><td>Again</td><td>學習（翻面後）</td></tr>
+              <tr><td><kbd>2</kbd></td><td>Hard</td><td>學習（翻面後）</td></tr>
+              <tr><td><kbd>3</kbd></td><td>Good</td><td>學習（翻面後）</td></tr>
+              <tr><td><kbd>4</kbd></td><td>Easy</td><td>學習（翻面後）</td></tr>
+              <tr><td><kbd>Y</kbd></td><td>會</td><td>測驗</td></tr>
+              <tr><td><kbd>N</kbd></td><td>不會</td><td>測驗</td></tr>
+              <tr><td><kbd>→</kbd> / <kbd>D</kbd></td><td>已讀</td><td>全書閱讀</td></tr>
+              <tr><td><kbd>←</kbd> / <kbd>A</kbd></td><td>再讀</td><td>全書閱讀</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- .help-content -->
+  </div>
 
   <!-- ===== Admin Screen ===== -->
   <div id="screen-admin" class="screen">
@@ -2030,6 +2321,17 @@ window.showScreen = function(name) {
   if (name === 'progress') showProgress();
   if (name === 'mastered') showMastered();
 };
+
+// =====================================================================
+// Help / Manual
+// =====================================================================
+function toggleHelp(headerEl) {
+  const arrow = headerEl.querySelector('.help-section-arrow');
+  const body  = headerEl.nextElementSibling;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  arrow.classList.toggle('open', !isOpen);
+}
 
 // =====================================================================
 // Book Reading Mode (VIP)
