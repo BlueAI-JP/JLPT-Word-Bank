@@ -110,6 +110,19 @@ body::after {
 }
 .header-user { font-size: 0.78rem; color: var(--text-muted); }
 
+/* ===================== Level User-Bar ===================== */
+.level-userbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; background: var(--surface); border-radius: var(--radius);
+  border: 1px solid var(--border); flex-shrink: 0;
+}
+.level-userbar-name {
+  flex: 1; font-size: 0.82rem; color: var(--text-muted);
+  display: flex; align-items: center; gap: 6px; overflow: hidden;
+}
+.level-userbar-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.level-userbar .btn-sm { padding: 5px 11px; font-size: 0.78rem; }
+
 /* ===================== Buttons ===================== */
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -980,10 +993,13 @@ kbd {
   <div id="screen-level" class="screen">
     <div class="header">
       <div class="header-title">⛩ JLPT 單字王</div>
-      <div id="header-user" class="header-user"></div>
-      <button id="btn-admin" class="btn btn-ghost btn-sm" style="display:none" onclick="showAdmin()">🛡</button>
-      <button class="btn btn-ghost btn-sm" onclick="showScreen('help')" title="使用說明">？</button>
       <button class="btn btn-ghost btn-sm" onclick="logout()">登出</button>
+    </div>
+    <!-- User bar：顯示登入者 + 快捷功能按鈕 -->
+    <div class="level-userbar">
+      <div class="level-userbar-name" id="header-user"></div>
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('help')">📖 使用說明</button>
+      <button id="btn-admin" class="btn btn-ghost btn-sm" style="display:none" onclick="showAdmin()">🛡 管理</button>
     </div>
     <div style="font-size:0.8rem;color:var(--text-muted);font-weight:700;padding:2px 0;letter-spacing:0.08em">選擇練習等級</div>
     <div class="level-grid" id="level-grid"></div>
