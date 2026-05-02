@@ -102,11 +102,18 @@ async def _require_admin(session_token: Optional[str]) -> int:
     return user_id
 
 
+async def _is_effective_vip(user: dict) -> bool:
+    """管理者自動擁有 VIP 權限；或 DB 中 is_vip 為 True。"""
+    if user.get("is_vip"):
+        return True
+    return await db.is_admin(user.get("email"))
+
+
 async def _require_vip(session_token: Optional[str]) -> int:
-    """Validate session and confirm the user is VIP. Returns user_id."""
+    """Validate session and confirm the user is VIP (or admin). Returns user_id."""
     user_id = _require_session(session_token)
     user = await db.get_user_by_id(user_id)
-    if not user or not user.get("is_vip"):
+    if not user or not await _is_effective_vip(user):
         raise HTTPException(status_code=403, detail="此功能僅限 VIP 使用者")
     return user_id
 
@@ -348,7 +355,7 @@ async def get_me(
         "avatar_url": user["avatar_url"],
         "is_anonymous": user["is_anonymous"],
         "is_admin": await db.is_admin(user.get("email")),
-        "is_vip": user.get("is_vip", False),
+        "is_vip": await _is_effective_vip(user),
         "study_remaining": None,
         "quiz_remaining": None,
     }
