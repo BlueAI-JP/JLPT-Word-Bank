@@ -647,17 +647,67 @@ kbd {
 ::-webkit-scrollbar-thumb:hover { background: rgba(201,168,76,0.3); }
 
 /* ===================== Responsive ===================== */
+
+/* Small phone tuning */
 @media (min-width: 480px) {
   .srs-btns { gap: 8px; }
   .srs-btn { padding: 12px 8px; font-size: 0.9rem; }
   .word-main { font-size: clamp(2.5rem, 6vw, 3.5rem); }
 }
+
+/* Compact height — landscape phone */
 @media (max-height: 650px) {
   .card-face { padding: 14px; }
   .card-front-content { min-height: 120px; }
   .word-main { font-size: 2rem; }
-  .kabuto-logo { width: 110px; height: 145px; }
-  .login-hero { gap: 6px; }
+}
+
+/* ---- Tablet (iPad portrait 768 px +) ---- */
+@media (min-width: 768px) {
+  #app { max-width: 760px; padding: 0 28px; }
+  .screen { gap: clamp(8px, 1.6dvh, 18px); padding: clamp(10px, 1.8dvh, 22px) 0; }
+
+  /* Level screen — taller buttons, bigger text */
+  .level-btn { padding: clamp(20px, 4.5dvh, 60px) 16px; }
+  .level-name { font-size: clamp(2rem, 5dvh, 3.6rem); }
+  .level-count, .level-na { font-size: 0.9rem; }
+
+  /* Mode screen — 2 × 2 grid so all 4 cards fit without scroll */
+  .mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(8px, 1.4dvh, 16px);
+    flex: 1; overflow: hidden;
+  }
+  .mode-card { flex-shrink: 1; }
+  .mode-icon { font-size: 1.8rem; }
+  .mode-title { font-size: 1.05rem; }
+  .mode-desc { font-size: 0.82rem; }
+
+  /* Study / Quiz card */
+  .card-front-content { min-height: clamp(160px, 22dvh, 260px); }
+  .card-back-face { max-height: calc(100dvh - 220px); }
+
+  /* SRS buttons */
+  .srs-btn { padding: 14px 8px; font-size: 0.92rem; }
+
+  /* Completion screen */
+  .completion-emoji { font-size: clamp(3.5rem, 7dvh, 5.5rem); }
+  .completion-title { font-size: clamp(1.5rem, 3.5dvh, 2.2rem); }
+  .completion-score { font-size: clamp(3rem, 6dvh, 4.5rem); }
+
+  /* Login */
+  .login-center { max-width: 520px; }
+}
+
+/* ---- Desktop (1200 px +) ---- */
+@media (min-width: 1200px) {
+  #app { max-width: 860px; padding: 0 36px; }
+  .level-btn { padding: clamp(28px, 5.5dvh, 70px) 20px; }
+  .level-name { font-size: clamp(2.2rem, 5.5dvh, 4rem); }
+  .card-front-content { min-height: clamp(200px, 26dvh, 300px); }
+  .mode-icon { font-size: 2rem; }
+  .mode-title { font-size: 1.1rem; }
 }
 
 /* ===================== Admin Screen ===================== */
@@ -705,6 +755,12 @@ kbd {
   outline: none;
 }
 .admin-add-row input:focus { border-color: var(--primary); }
+
+/* ===================== Version Badge ===================== */
+.version-badge {
+  font-size: 0.6rem; color: #4a3618; text-align: center;
+  letter-spacing: 0.08em; opacity: 0.75; user-select: none;
+}
 </style>
 </head>
 <body>
@@ -824,6 +880,7 @@ kbd {
         <div class="login-divider"><span>或</span></div>
         <button class="trial-btn" onclick="loginAnonymous()">我要試用</button>
         <div class="trial-note">試用版：學習 10 字 × 每日 2 次 ／ 測驗 15 字 × 每日 1 次<br>無測驗檢討功能 · 登入 Google 解鎖完整版</div>
+        <div class="version-badge">V1.10 &nbsp;·&nbsp; 20260502</div>
       </div>
 
     </div>
@@ -839,8 +896,9 @@ kbd {
     </div>
     <div style="font-size:0.8rem;color:var(--text-muted);font-weight:700;padding:2px 0;letter-spacing:0.08em">選擇練習等級</div>
     <div class="level-grid" id="level-grid"></div>
-    <div style="margin-top:auto;display:flex;gap:8px;">
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px;">
       <button class="btn btn-outline btn-full" onclick="showScreen('progress')">📊 學習記錄</button>
+      <div class="version-badge">V1.10 &nbsp;·&nbsp; 20260502</div>
     </div>
   </div>
 
