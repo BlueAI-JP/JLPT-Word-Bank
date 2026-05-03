@@ -40,24 +40,37 @@ _session_times: dict[str, float] = {}   # token -> creation wall-clock time
 SESSION_MAX_AGE = 7 * 86400  # 7 days (matches cookie max_age)
 
 
+AUTH_STATE_MAX_AGE = 600  # 10 minutes — unused OAuth states are discarded
+
+
 async def _cleanup_loop() -> None:
-    """Background task: hourly cleanup of expired sessions and stale rate-limit records."""
+    """Background task: hourly cleanup of expired sessions, rate-limit records, OAuth states."""
     while True:
         await asyncio.sleep(3600)
-        now = _time()
+        now    = _time()
+        cutoff = monotonic() - RATE_WINDOW
+
+        # Expired sessions
         expired_tokens = [t for t, ts in _session_times.items() if now - ts > SESSION_MAX_AGE]
         for t in expired_tokens:
             _sessions.pop(t, None)
             _session_times.pop(t, None)
 
-        cutoff = monotonic() - RATE_WINDOW
-        stale_ips = [ip for ip, ts in list(_ip_timestamps.items()) if not any(t > cutoff for t in ts)]
-        for ip in stale_ips:
-            _ip_timestamps.pop(ip, None)
+        # Stale rate-limit buckets (both tiers)
+        stale_heavy  = [ip for ip, ts in list(_ip_ts_heavy.items())  if not any(t > cutoff for t in ts)]
+        stale_global = [ip for ip, ts in list(_ip_ts_global.items()) if not any(t > cutoff for t in ts)]
+        for ip in stale_heavy:  _ip_ts_heavy.pop(ip, None)
+        for ip in stale_global: _ip_ts_global.pop(ip, None)
 
-        if expired_tokens or stale_ips:
-            logger.info("Cleanup: %d expired sessions, %d stale IPs removed",
-                        len(expired_tokens), len(stale_ips))
+        # Expired OAuth states (DoS prevention)
+        stale_states = [s for s, ts in list(auth._pending_states.items()) if now - ts > AUTH_STATE_MAX_AGE]
+        for s in stale_states:
+            auth._pending_states.pop(s, None)
+
+        total_cleaned = len(expired_tokens) + len(stale_heavy) + len(stale_global) + len(stale_states)
+        if total_cleaned:
+            logger.info("Cleanup: %d sessions, %d heavy IPs, %d global IPs, %d OAuth states removed",
+                        len(expired_tokens), len(stale_heavy), len(stale_global), len(stale_states))
 
 
 @asynccontextmanager
@@ -78,28 +91,41 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 # ---------------------------------------------------------------------------
-# Anti-scraping middleware (rate limit on word/audio endpoints)
+# Rate limiting middleware — two tiers
 # ---------------------------------------------------------------------------
 
-_ip_timestamps: dict[str, list[float]] = defaultdict(list)
-RATE_WINDOW   = 60    # seconds
-RATE_MAX_REQS = 300   # max requests per IP per window on protected paths
-_PROTECTED    = ("/api/audio/", "/api/words/")
+RATE_WINDOW = 60  # seconds
+
+# Tier 1: anti-scraping for heavy download endpoints (300 req/min)
+_ip_ts_heavy: dict[str, list[float]] = defaultdict(list)
+RATE_HEAVY_MAX   = 300
+RATE_HEAVY_PATHS = ("/api/audio/", "/api/words/")
+
+# Tier 2: global protection for all API/auth endpoints (120 req/min)
+_ip_ts_global: dict[str, list[float]] = defaultdict(list)
+RATE_GLOBAL_MAX   = 120
+RATE_GLOBAL_PATHS = ("/api/", "/auth/")
 
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    path = request.url.path
-    if any(path.startswith(p) for p in _PROTECTED):
-        ip  = _get_client_ip(request)
-        now = monotonic()
-        ts  = _ip_timestamps[ip]
-        cutoff = now - RATE_WINDOW
-        # Prune old entries
-        _ip_timestamps[ip] = [t for t in ts if t > cutoff]
-        _ip_timestamps[ip].append(now)
-        if len(_ip_timestamps[ip]) > RATE_MAX_REQS:
+    path   = request.url.path
+    ip     = _get_client_ip(request)
+    now    = monotonic()
+    cutoff = now - RATE_WINDOW
+
+    if any(path.startswith(p) for p in RATE_HEAVY_PATHS):
+        _ip_ts_heavy[ip] = [t for t in _ip_ts_heavy[ip] if t > cutoff]
+        _ip_ts_heavy[ip].append(now)
+        if len(_ip_ts_heavy[ip]) > RATE_HEAVY_MAX:
             return PlainTextResponse("Too Many Requests", status_code=429)
+
+    if any(path.startswith(p) for p in RATE_GLOBAL_PATHS):
+        _ip_ts_global[ip] = [t for t in _ip_ts_global[ip] if t > cutoff]
+        _ip_ts_global[ip].append(now)
+        if len(_ip_ts_global[ip]) > RATE_GLOBAL_MAX:
+            return PlainTextResponse("Too Many Requests", status_code=429)
+
     return await call_next(request)
 
 
@@ -503,7 +529,9 @@ async def get_progress(
     user_id: int,
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
-    _require_session(session_token)
+    uid = _require_session(session_token)
+    if uid != user_id:
+        raise HTTPException(403, "無權限存取其他使用者的資料")
     result = {}
     for level_info in loader.get_all_levels():
         level = level_info["level"]
@@ -528,7 +556,9 @@ async def mark_mastered(
     req: MasterWordRequest,
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
-    _require_session(session_token)
+    uid = _require_session(session_token)
+    if uid != req.user_id:
+        raise HTTPException(403, "無權限存取其他使用者的資料")
     await db.add_mastered_word(req.user_id, req.level, req.word_id)
     return {"ok": True}
 
@@ -539,7 +569,9 @@ async def reset_mastered(
     level: str,
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
-    _require_session(session_token)
+    uid = _require_session(session_token)
+    if uid != user_id:
+        raise HTTPException(403, "無權限存取其他使用者的資料")
     await db.reset_mastered_words(user_id, level)
     return {"ok": True}
 
@@ -550,7 +582,9 @@ async def get_mastered_words(
     level: str,
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
-    _require_session(session_token)
+    uid = _require_session(session_token)
+    if uid != user_id:
+        raise HTTPException(403, "無權限存取其他使用者的資料")
     mastered_ids = await db.get_mastered_word_ids(user_id, level)
     all_words = loader.get_words(level)
     return [w for w in all_words if w["id"] in mastered_ids]
@@ -565,7 +599,9 @@ async def complete_study(
     req: StudyCompleteRequest,
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
-    _require_session(session_token)
+    uid = _require_session(session_token)
+    if uid != req.user_id:
+        raise HTTPException(403, "無權限存取其他使用者的資料")
     await db.add_study_session(req.user_id, req.level)
     return {"ok": True}
 
@@ -576,7 +612,9 @@ async def reset_study(
     level: str,
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
-    _require_session(session_token)
+    uid = _require_session(session_token)
+    if uid != user_id:
+        raise HTTPException(403, "無權限存取其他使用者的資料")
     await db.reset_study_sessions(user_id, level)
     return {"ok": True}
 
@@ -586,7 +624,9 @@ async def complete_quiz(
     req: QuizCompleteRequest,
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
-    _require_session(session_token)
+    uid = _require_session(session_token)
+    if uid != req.user_id:
+        raise HTTPException(403, "無權限存取其他使用者的資料")
     await db.add_quiz_session(req.user_id, req.level, req.score)
     if req.wrong_word_ids:
         await db.add_quiz_wrong_words_batch(req.user_id, req.level, req.wrong_word_ids)
@@ -599,7 +639,9 @@ async def reset_quiz(
     level: str,
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
-    _require_session(session_token)
+    uid = _require_session(session_token)
+    if uid != user_id:
+        raise HTTPException(403, "無權限存取其他使用者的資料")
     await db.reset_quiz_sessions(user_id, level)
     return {"ok": True}
 
@@ -615,6 +657,8 @@ async def get_wrong_words(
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
     uid = _require_session(session_token)
+    if uid != user_id:
+        raise HTTPException(403, "無權限存取其他使用者的資料")
     user = await db.get_user_by_id(uid)
     if user and user["is_anonymous"]:
         raise HTTPException(403, "試用帳號無法使用測驗檢討功能，請登入 Google 帳號")
@@ -630,7 +674,9 @@ async def remove_wrong_word(
     word_id: int,
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
-    _require_session(session_token)
+    uid = _require_session(session_token)
+    if uid != user_id:
+        raise HTTPException(403, "無權限存取其他使用者的資料")
     await db.remove_quiz_wrong_word(user_id, level, word_id)
     return {"ok": True}
 
@@ -641,7 +687,9 @@ async def reset_wrong_words(
     level: str,
     session_token: Annotated[Optional[str], Cookie()] = None,
 ):
-    _require_session(session_token)
+    uid = _require_session(session_token)
+    if uid != user_id:
+        raise HTTPException(403, "無權限存取其他使用者的資料")
     await db.reset_quiz_wrong_words(user_id, level)
     return {"ok": True}
 

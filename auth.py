@@ -1,6 +1,7 @@
 """Google OAuth 2.0 helpers for JLPT 單字王."""
 import os
 import secrets
+from time import time as _time
 from urllib.parse import urlencode
 
 import httpx
@@ -22,13 +23,14 @@ _AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 _TOKEN_URL = "https://oauth2.googleapis.com/token"
 _USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 
-_pending_states: set[str] = set()
+# state -> creation timestamp; cleaned up by main.py _cleanup_loop (10-min TTL)
+_pending_states: dict[str, float] = {}
 
 
 def build_auth_url() -> str:
     """Generate Google OAuth authorization URL and register its state."""
     state = secrets.token_urlsafe(16)
-    _pending_states.add(state)
+    _pending_states[state] = _time()
     params = urlencode({
         "client_id": GOOGLE_CLIENT_ID,
         "redirect_uri": GOOGLE_REDIRECT_URI,
@@ -43,7 +45,7 @@ def build_auth_url() -> str:
 def validate_state(state: str) -> bool:
     """Validate and consume a one-time OAuth state (CSRF protection)."""
     if state in _pending_states:
-        _pending_states.discard(state)
+        del _pending_states[state]
         return True
     return False
 
