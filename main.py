@@ -114,13 +114,17 @@ async def rate_limit_middleware(request: Request, call_next):
     now    = monotonic()
     cutoff = now - RATE_WINDOW
 
-    if any(path.startswith(p) for p in RATE_HEAVY_PATHS):
+    is_heavy = any(path.startswith(p) for p in RATE_HEAVY_PATHS)
+
+    if is_heavy:
         _ip_ts_heavy[ip] = [t for t in _ip_ts_heavy[ip] if t > cutoff]
         _ip_ts_heavy[ip].append(now)
         if len(_ip_ts_heavy[ip]) > RATE_HEAVY_MAX:
             return PlainTextResponse("Too Many Requests", status_code=429)
 
-    if any(path.startswith(p) for p in RATE_GLOBAL_PATHS):
+    # Global tier only applies to non-heavy paths; prevents audio/words being
+    # double-counted and hitting the stricter 120-req limit prematurely.
+    if not is_heavy and any(path.startswith(p) for p in RATE_GLOBAL_PATHS):
         _ip_ts_global[ip] = [t for t in _ip_ts_global[ip] if t > cutoff]
         _ip_ts_global[ip].append(now)
         if len(_ip_ts_global[ip]) > RATE_GLOBAL_MAX:
@@ -457,7 +461,6 @@ async def get_levels():
 async def get_words(
     level: str,
     request: Request,
-    user_id: Optional[int] = None,
     exclude_mastered: bool = False,
     mode: Optional[str] = None,
     session_token: Annotated[Optional[str], Cookie()] = None,
@@ -483,8 +486,8 @@ async def get_words(
         await db.increment_anonymous_usage(ip, today, mode)
         return words
 
-    if exclude_mastered and user_id is not None:
-        mastered = await db.get_mastered_word_ids(user_id, level)
+    if exclude_mastered and not is_anon:
+        mastered = await db.get_mastered_word_ids(uid, level)
         words = [w for w in words if w["id"] not in mastered]
 
     return words

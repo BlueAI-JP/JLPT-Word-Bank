@@ -1878,7 +1878,7 @@ async function startStudy() {
   try {
     const excludeParam = S.isAnonymous ? '' : '&exclude_mastered=true';
     const words = await api('GET',
-      `/api/words/${S.currentLevel}?user_id=${S.userId}${excludeParam}&mode=study`);
+      `/api/words/${S.currentLevel}?mode=study${excludeParam}`);
     if (!words.length) { toast('🎉 所有單字都已學會！'); showScreen('mode'); return; }
     const limit = S.isAnonymous ? 10 : 20;
     const batch = shuffle(words).slice(0, limit);
