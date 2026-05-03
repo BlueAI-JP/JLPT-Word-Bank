@@ -4,12 +4,12 @@ import os
 import secrets
 import smtplib
 from collections import defaultdict
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import date, datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
-from time import monotonic
+from time import monotonic, time as _time
 from typing import Annotated, Optional
 
 PRODUCTION = os.getenv("PRODUCTION", "false").lower() == "true"
@@ -34,14 +34,41 @@ from data_loader import WordDataLoader
 loader = WordDataLoader()
 
 # In-memory session store: token -> user_id
-_sessions: dict[str, int] = {}
+_sessions:      dict[str, int]   = {}
+_session_times: dict[str, float] = {}   # token -> creation wall-clock time
+
+SESSION_MAX_AGE = 7 * 86400  # 7 days (matches cookie max_age)
+
+
+async def _cleanup_loop() -> None:
+    """Background task: hourly cleanup of expired sessions and stale rate-limit records."""
+    while True:
+        await asyncio.sleep(3600)
+        now = _time()
+        expired_tokens = [t for t, ts in _session_times.items() if now - ts > SESSION_MAX_AGE]
+        for t in expired_tokens:
+            _sessions.pop(t, None)
+            _session_times.pop(t, None)
+
+        cutoff = monotonic() - RATE_WINDOW
+        stale_ips = [ip for ip, ts in list(_ip_timestamps.items()) if not any(t > cutoff for t in ts)]
+        for ip in stale_ips:
+            _ip_timestamps.pop(ip, None)
+
+        if expired_tokens or stale_ips:
+            logger.info("Cleanup: %d expired sessions, %d stale IPs removed",
+                        len(expired_tokens), len(stale_ips))
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await db.init_db()
     loader.load_all()
+    cleanup_task = asyncio.create_task(_cleanup_loop())
     yield
+    cleanup_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await cleanup_task
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None)
@@ -86,14 +113,25 @@ def _require_session(session_token: Optional[str]) -> int:
     return _sessions[session_token]
 
 
+_TRUSTED_PROXIES = {"127.0.0.1", "::1"}
+
+
 def _get_client_ip(request: Request) -> str:
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip
-    return request.client.host
+    """Return the real client IP.
+
+    X-Forwarded-For / X-Real-IP are only trusted when the direct TCP
+    connection comes from a trusted proxy (localhost Nginx).  This prevents
+    attackers from spoofing their IP by setting the header directly.
+    """
+    direct_ip = request.client.host if request.client else "0.0.0.0"
+    if direct_ip in _TRUSTED_PROXIES:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        real_ip = request.headers.get("X-Real-IP")
+        if real_ip:
+            return real_ip
+    return direct_ip
 
 
 async def _require_admin(session_token: Optional[str]) -> int:
@@ -121,9 +159,18 @@ async def _require_vip(session_token: Optional[str]) -> int:
     return user_id
 
 
+def _evict_user_sessions(user_id: int) -> None:
+    """Remove all in-memory sessions belonging to user_id (e.g. after ban)."""
+    tokens = [t for t, uid in _sessions.items() if uid == user_id]
+    for t in tokens:
+        _sessions.pop(t, None)
+        _session_times.pop(t, None)
+
+
 def _make_session(response: Response, user_id: int) -> str:
     token = secrets.token_urlsafe(32)
     _sessions[token] = user_id
+    _session_times[token] = _time()
     response.set_cookie(
         key="session_token",
         value=token,
@@ -195,10 +242,6 @@ async def _notify_new_user(user_info: dict, ip: str) -> None:
 # ---------------------------------------------------------------------------
 # Request / Response models
 # ---------------------------------------------------------------------------
-
-class LoginRequest(BaseModel):
-    name: str
-
 
 class MasterWordRequest(BaseModel):
     user_id: int
@@ -305,24 +348,8 @@ async def auth_google_callback(
 
 
 # ---------------------------------------------------------------------------
-# Routes - Auth (legacy + anonymous)
+# Routes - Auth (anonymous + Google SSO only; legacy endpoints removed)
 # ---------------------------------------------------------------------------
-
-@app.get("/api/users")
-async def list_users():
-    return await db.get_all_users()
-
-
-@app.post("/api/login")
-async def login(req: LoginRequest, response: Response):
-    """Legacy name-based login (kept for backward compat)."""
-    name = req.name.strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="名字不能為空")
-    user_id = await db.get_or_create_user(name)
-    token = _make_session(response, user_id)
-    return {"user_id": user_id, "name": name, "token": token, "is_anonymous": False}
-
 
 @app.post("/api/login/anonymous")
 async def login_anonymous(request: Request, response: Response):
@@ -348,6 +375,7 @@ async def logout(
 ):
     if session_token and session_token in _sessions:
         del _sessions[session_token]
+        _session_times.pop(session_token, None)
     response.delete_cookie("session_token")
     return {"ok": True}
 
@@ -679,6 +707,7 @@ async def admin_ban_user(
     if user_id == admin_uid:
         raise HTTPException(400, "不可封禁自己的帳號")
     await db.ban_user(user_id, banned_by=admin_user["email"] or "", reason=req.reason)
+    _evict_user_sessions(user_id)   # 立即踢出，不等 /api/me 才生效
     return {"ok": True}
 
 

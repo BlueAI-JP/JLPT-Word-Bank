@@ -115,28 +115,6 @@ async def init_db() -> None:
 # User helpers
 # ---------------------------------------------------------------------------
 
-async def get_all_users() -> list[str]:
-    """Return non-anonymous user names (admin / backward compat)."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT name FROM users WHERE is_anonymous = 0 ORDER BY name"
-        ) as cur:
-            rows = await cur.fetchall()
-    return [r[0] for r in rows]
-
-
-async def get_or_create_user(name: str) -> int:
-    """Legacy name-based login."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "INSERT OR IGNORE INTO users (name) VALUES (?)", (name,)
-        )
-        await db.commit()
-        async with db.execute("SELECT id FROM users WHERE name = ?", (name,)) as cur:
-            row = await cur.fetchone()
-    return row[0]
-
-
 async def get_or_create_google_user(
     google_id: str, name: str, email: str, avatar_url: str, ip: str
 ) -> tuple[int, bool]:

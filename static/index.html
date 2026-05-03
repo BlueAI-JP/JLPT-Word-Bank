@@ -1633,6 +1633,15 @@ kbd {
 // =====================================================================
 const STORAGE_KEY = 'jlpt_session_v3';
 
+// =====================================================================
+// Security: HTML-escape untrusted strings before inserting via innerHTML
+// =====================================================================
+const _escDiv = document.createElement('div');
+function esc(str) {
+  _escDiv.textContent = str ?? '';
+  return _escDiv.innerHTML;
+}
+
 // Global state
 const S = {
   userId: null, userName: null, userEmail: null,
@@ -2517,11 +2526,12 @@ async function adminLoadUsers() {
     users.forEach(u => {
       const tr = document.createElement('tr');
       if (u.is_banned) tr.classList.add('banned-row');
+      tr.dataset.userName = u.name;   // 存原始字串；setAttribute 不會解析 HTML
       const isSelf = u.id === S.userId;
       tr.innerHTML = `
         <td>
-          <div style="font-weight:700">${u.name}</div>
-          <div style="font-size:0.7rem;color:var(--text-muted)">${u.email || '—'}</div>
+          <div style="font-weight:700">${esc(u.name)}</div>
+          <div style="font-size:0.7rem;color:var(--text-muted)">${esc(u.email) || '—'}</div>
         </td>
         <td>${u.login_count ?? 0}</td>
         <td>${u.study_count ?? 0}</td>
@@ -2529,7 +2539,7 @@ async function adminLoadUsers() {
         <td>${u.mastered_count ?? 0}</td>
         <td>${u.best_quiz_score != null ? u.best_quiz_score + '分' : '—'}</td>
         <td style="white-space:nowrap;font-size:0.7rem">${u.last_login ? fmtDate(u.last_login) : '—'}</td>
-        <td style="font-size:0.7rem">${u.last_ip || '—'}</td>
+        <td style="font-size:0.7rem">${esc(u.last_ip) || '—'}</td>
         <td>${u.is_banned
           ? '<span class="admin-badge-banned">封禁</span>'
           : '<span class="admin-badge-active">正常</span>'}</td>
@@ -2540,13 +2550,13 @@ async function adminLoadUsers() {
           ? '<span style="font-size:0.7rem;color:var(--text-muted)">（自己）</span>'
           : `${u.is_banned
               ? `<button class="btn-unban" onclick="adminUnbanUser(${u.id})">解封</button>`
-              : `<button class="btn-ban"   onclick="adminBanUser(${u.id},'${u.name.replace(/'/g,"\\'")}')">封禁</button>`
+              : `<button class="btn-ban"   onclick="adminBanUser(${u.id}, this.closest('tr').dataset.userName)">封禁</button>`
             }
              ${u.is_vip
               ? `<button class="btn-unsetvip" onclick="adminSetVip(${u.id},false)">取消VIP</button>`
               : `<button class="btn-setvip"   onclick="adminSetVip(${u.id},true)">設為VIP</button>`
             }
-             <button class="btn-deluser" onclick="adminDeleteUser(${u.id},'${u.name.replace(/'/g,"\\'")}')">刪除</button>`
+             <button class="btn-deluser" onclick="adminDeleteUser(${u.id}, this.closest('tr').dataset.userName)">刪除</button>`
         }</td>
       `;
       tbody.appendChild(tr);
