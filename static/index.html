@@ -1467,7 +1467,7 @@ kbd {
           <table class="help-table">
             <tr>
               <td><span class="help-label help-label-orange">🔁 再讀</span></td>
-              <td>將此單字移到閱讀列表最後，稍後再看</td>
+              <td>將此單字插入往後第 10 個位置（不足 10 個則移到最後），稍後再看</td>
             </tr>
             <tr>
               <td><span class="help-label help-label-blue">✓ 已讀</span></td>
@@ -2438,7 +2438,9 @@ function bookAction(action) {
   if (currentScreen !== 'book' || !S.bookQueue.length) return;
   const word = S.bookQueue.shift();
   if (action === 'reread') {
-    S.bookQueue.push(word);   // 插入佇列末尾
+    // 插入到接下來第 10 個位置；不足 10 個則插到最後
+    const insertAt = Math.min(10, S.bookQueue.length);
+    S.bookQueue.splice(insertAt, 0, word);
   }
   // 'read' — 直接移除（已 shift）
   _scheduleBookSave();
