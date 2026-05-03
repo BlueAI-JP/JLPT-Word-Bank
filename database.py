@@ -504,7 +504,12 @@ async def unban_user(user_id: int) -> None:
 
 
 async def get_all_users_admin() -> list[dict]:
-    """Return all non-anonymous users with aggregated stats for the admin panel."""
+    """Return all non-anonymous users with aggregated stats for the admin panel.
+
+    Uses LEFT JOIN + GROUP BY instead of correlated subqueries to avoid O(N×K)
+    performance degradation when user count grows.
+    COUNT(DISTINCT ...) prevents row-multiplication across multiple joins.
+    """
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("""
             SELECT
@@ -514,15 +519,19 @@ async def get_all_users_admin() -> list[dict]:
                 u.login_count,
                 u.last_login,
                 u.last_ip,
-                (SELECT COUNT(*) FROM study_sessions s WHERE s.user_id = u.id),
-                (SELECT COUNT(*) FROM quiz_sessions  q WHERE q.user_id = u.id),
-                (SELECT COUNT(*) FROM mastered_words m WHERE m.user_id = u.id),
-                (SELECT MAX(score) FROM quiz_sessions q WHERE q.user_id = u.id),
-                CASE WHEN b.user_id IS NOT NULL THEN 1 ELSE 0 END,
+                COUNT(DISTINCT ss.id)  AS study_count,
+                COUNT(DISTINCT qs.id)  AS quiz_count,
+                COUNT(DISTINCT mw.id)  AS mastered_count,
+                MAX(qs.score)          AS best_quiz_score,
+                CASE WHEN b.user_id IS NOT NULL THEN 1 ELSE 0 END AS is_banned,
                 u.is_vip
             FROM users u
-            LEFT JOIN banned_users b ON b.user_id = u.id
+            LEFT JOIN study_sessions ss ON ss.user_id = u.id
+            LEFT JOIN quiz_sessions  qs ON qs.user_id = u.id
+            LEFT JOIN mastered_words mw ON mw.user_id = u.id
+            LEFT JOIN banned_users    b ON  b.user_id = u.id
             WHERE u.is_anonymous = 0
+            GROUP BY u.id
             ORDER BY
                 CASE WHEN u.last_login IS NULL THEN 1 ELSE 0 END,
                 u.last_login DESC

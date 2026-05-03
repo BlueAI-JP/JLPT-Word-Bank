@@ -21,7 +21,7 @@ logger = logging.getLogger("jlpt")
 from fastapi import BackgroundTasks, Cookie, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import auth
 import database as db
@@ -284,7 +284,7 @@ class QuizCompleteRequest(BaseModel):
     user_id: int
     level: str
     score: float
-    wrong_word_ids: list[int] = []
+    wrong_word_ids: list[int] = Field(default=[], max_length=100)  # 測驗上限 50 題，給雙倍餘裕
 
 
 class AdminAddEmailRequest(BaseModel):
@@ -296,7 +296,7 @@ class BanUserRequest(BaseModel):
 
 
 class BookProgressRequest(BaseModel):
-    queue: list[int]
+    queue: list[int] = Field(max_length=5000)  # 防止巨型 payload 寫爆 SQLite
 
 
 # ---------------------------------------------------------------------------
